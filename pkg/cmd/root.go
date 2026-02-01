@@ -4,13 +4,35 @@ Copyright © 2026 Andy Barilla me@andybarilla.com
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"gonzo/pkg/gonzo"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/thediveo/enumflag/v2"
 )
+
+type LLMModel enumflag.Flag
+
+const (
+	ModelClaudeHaiku LLMModel = iota + 1
+	ModelClaudeSonnet
+	ModelClaudeOpus
+)
+
+var llmModelNames = map[LLMModel][]string{
+	ModelClaudeHaiku:  {gonzo.CLAUDE_HAIKU},
+	ModelClaudeSonnet: {gonzo.CLAUDE_SONNET},
+	ModelClaudeOpus:   {gonzo.CLAUDE_OPUS},
+}
+
+var llmModel = ModelClaudeOpus
+
+// claudeGenerate is a variable that wraps gonzo.ClaudeGenerate for testing.
+var claudeGenerate = gonzo.ClaudeGenerate
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -22,16 +44,8 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	Run: func(cmd *cobra.Command, args []string) {
-		response, err := gonzo.ClaudeGenerate(cmd.Context(), gonzo.CLAUDE_HAIKU, "Write a haiku about the sea.")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Println(response)
-	},
+	Args: cobra.ArbitraryArgs,
+	Run:  runClaudePrompt,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -44,13 +58,39 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	rootCmd.PersistentFlags().VarP(
+		enumflag.New(&llmModel, "model", llmModelNames, enumflag.EnumCaseInsensitive),
+		"model", "m",
+		fmt.Sprintf("Language model to use (options: %s, %s, %s)", gonzo.CLAUDE_HAIKU, gonzo.CLAUDE_SONNET, gonzo.CLAUDE_OPUS))
+}
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.gonzo.yaml)")
+func runClaudePrompt(cmd *cobra.Command, args []string) {
+	var prompt string
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Check if stdin is a pipe (has data)
+	stdinStat, _ := os.Stdin.Stat()
+	stdinIsPipe := (stdinStat.Mode() & os.ModeCharDevice) == 0
+
+	if len(args) > 0 {
+		prompt = strings.Join(args, " ")
+	} else if stdinIsPipe {
+		scanner := bufio.NewScanner(os.Stdin)
+		var lines []string
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+		prompt = strings.Join(lines, "\n")
+	}
+
+	if prompt == "" {
+		cmd.Help()
+		return
+	}
+
+	response, err := claudeGenerate(cmd.Context(), llmModelNames[llmModel][0], prompt)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(response)
 }
