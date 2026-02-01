@@ -2,11 +2,43 @@ package gonzo
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 )
+
+// mockCommandContext creates a mock exec.Cmd that calls TestHelperProcess instead of the real command.
+// The response parameter is what the mock CLI will output.
+func mockCommandContext(response string, exitCode int) func(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcess", "--", name}
+		cs = append(cs, args...)
+		cmd := exec.CommandContext(ctx, os.Args[0], cs...)
+		cmd.Env = []string{
+			"GO_WANT_HELPER_PROCESS=1",
+			fmt.Sprintf("GO_HELPER_RESPONSE=%s", response),
+			fmt.Sprintf("GO_HELPER_EXIT_CODE=%d", exitCode),
+		}
+		return cmd
+	}
+}
+
+// TestHelperProcess is not a real test. It's used as a mock process for exec.Command tests.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	response := os.Getenv("GO_HELPER_RESPONSE")
+	exitCodeStr := os.Getenv("GO_HELPER_EXIT_CODE")
+	exitCode := 0
+	if exitCodeStr != "" {
+		fmt.Sscanf(exitCodeStr, "%d", &exitCode)
+	}
+	fmt.Print(response)
+	os.Exit(exitCode)
+}
 
 func TestClaudeConstants(t *testing.T) {
 	tests := []struct {
@@ -128,9 +160,12 @@ func TestClaudeGenerate_CLINotFound(t *testing.T) {
 }
 
 func TestClaudeGenerate_WithContext(t *testing.T) {
-	// Skip this test as it would execute the actual claude CLI
-	// which may hang or require user interaction
-	t.Skip("Skipping integration test - would execute actual claude CLI")
+	// Save original and restore after test
+	originalCommandContext := commandContext
+	defer func() { commandContext = originalCommandContext }()
+
+	// Mock the command to return a simple response
+	commandContext = mockCommandContext("mocked response", 0)
 
 	// Test that a cancelled context doesn't cause panic
 	ctx, cancel := context.WithCancel(context.Background())
@@ -140,18 +175,19 @@ func TestClaudeGenerate_WithContext(t *testing.T) {
 	// The implementation uses exec.CommandContext to respect context cancellation
 	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt")
 
-	// Error is expected (either from CLI not found or embed.FS)
+	// With a cancelled context, we expect an error (context cancelled)
 	// Main goal is to ensure no panic occurs
 	_ = err
 }
 
 func TestClaudeGenerate_ModelPassthrough(t *testing.T) {
-	// Skip this test as it would execute the actual claude CLI
-	// which may hang or require user interaction
-	t.Skip("Skipping integration test - would execute actual claude CLI")
+	// Save original and restore after test
+	originalCommandContext := commandContext
+	defer func() { commandContext = originalCommandContext }()
 
-	// This is more of a documentation test - verifying the function
-	// accepts the model constants correctly
+	// Mock the command to return a simple response
+	commandContext = mockCommandContext("mocked response", 0)
+
 	models := []string{
 		CLAUDE_HAIKU,
 		CLAUDE_SONNET,
@@ -160,9 +196,49 @@ func TestClaudeGenerate_ModelPassthrough(t *testing.T) {
 
 	for _, model := range models {
 		t.Run(model, func(t *testing.T) {
-			// Just verify it doesn't panic with valid model strings
 			ctx := context.Background()
-			_, _ = ClaudeGenerate(ctx, model, "test")
+			result, err := ClaudeGenerate(ctx, model, "test")
+			if err != nil {
+				t.Errorf("unexpected error for model %s: %v", model, err)
+			}
+			if result != "mocked response" {
+				t.Errorf("expected 'mocked response', got %q", result)
+			}
 		})
+	}
+}
+
+func TestClaudeGenerate_ReturnsOutput(t *testing.T) {
+	// Save original and restore after test
+	originalCommandContext := commandContext
+	defer func() { commandContext = originalCommandContext }()
+
+	expectedResponse := "This is the generated response from Claude"
+	commandContext = mockCommandContext(expectedResponse, 0)
+
+	ctx := context.Background()
+	result, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != expectedResponse {
+		t.Errorf("expected %q, got %q", expectedResponse, result)
+	}
+}
+
+func TestClaudeGenerate_HandlesError(t *testing.T) {
+	// Save original and restore after test
+	originalCommandContext := commandContext
+	defer func() { commandContext = originalCommandContext }()
+
+	// Mock a command that exits with error
+	commandContext = mockCommandContext("error output", 1)
+
+	ctx := context.Background()
+	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt")
+
+	if err == nil {
+		t.Error("expected error when command exits with non-zero code")
 	}
 }
