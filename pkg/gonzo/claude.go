@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+// commandContext is a variable that wraps exec.CommandContext for testing.
+// Tests can replace this to mock command execution.
+var commandContext = exec.CommandContext
+
 const CLAUDE_CODE_CLI = "claude"
 const CLAUDE_HAIKU = "claude-haiku-4-5"
 const CLAUDE_SONNET = "claude-sonnet-4-5"
@@ -29,7 +33,7 @@ func ClaudeGenerate(ctx context.Context, model string, prompt string) (string, e
 		return "", fmt.Errorf("failed to ensure progress file exists: %w", err)
 	}
 
-	cmd := exec.CommandContext(
+	cmd := commandContext(
 		ctx,
 		CLAUDE_CODE_CLI,
 		"--dangerously-skip-permissions",
