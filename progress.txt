@@ -1,0 +1,57 @@
+# Ralph Progress Log
+Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
+---
+
+## Codebase Patterns
+- Release binaries follow naming convention: `gonzo-{os}-{arch}` (e.g., `gonzo-linux-amd64`)
+- Checksums file is named `checksums.txt` and uses sha256sum format
+- GitHub Actions workflow builds for: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
+
+---
+
+## 2026-02-01 - Added downloadable install script
+
+### What was implemented
+- Created `install.sh` - a POSIX-compliant shell script for one-line installation
+- Features include:
+  - Automatic OS/architecture detection (darwin, linux, windows + amd64, arm64)
+  - Multiple download methods (curl preferred, wget fallback)
+  - SHA256 checksum verification using checksums.txt from releases
+  - Custom installation directory via `-b` flag
+  - Version pinning via `-t` flag (defaults to "latest")
+  - Debug mode via `-d` flag
+  - Proper cleanup of temporary files
+  - PATH hint when installing to non-PATH directory
+
+### Files changed
+- `install.sh` (new) - Main installation script
+- `README.md` (modified) - Added installation documentation
+
+### Learnings for future iterations
+- The release workflow creates binaries named `gonzo-{os}-{arch}` (not compressed)
+- Checksums are in `checksums.txt` using standard sha256sum format
+- Script uses POSIX sh for maximum compatibility (not bash)
+- Chezmoi's install script is a great reference for POSIX-compliant installers
+---
+
+## 2026-02-01 - Enhanced install script with colors and improved UX
+
+### What was implemented
+- Enhanced `install.sh` with features inspired by Claude Code and Chezmoi:
+  - **Colored output** with automatic terminal detection (respects NO_COLOR env var)
+  - **Better default install location**: prefers `~/.local/bin` (like Claude Code)
+  - **Force flag (-f)**: allows overwriting existing installations
+  - **Quiet flag (-q)**: minimal output for CI/automation
+  - **Installation verification**: tests that the installed binary runs
+  - **Improved help text**: better formatting with USAGE/OPTIONS/EXAMPLES sections
+  - **Uninstall instructions**: added to help output
+
+### Files changed
+- `install.sh` (modified) - Enhanced with colors, new flags, improved UX
+
+### Learnings for future iterations
+- POSIX sh color codes: use `\033[0;31m` etc. with printf (not echo)
+- Detect color support: check `[ -t 2 ]` for terminal and respect NO_COLOR
+- Default to `~/.local/bin` as it's the XDG standard for user binaries
+- Verify installation by running `binary --version` after install
+---
