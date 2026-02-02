@@ -9,38 +9,36 @@
 #   wget -qO- https://raw.githubusercontent.com/andybarilla/gonzo/main/install.sh | sh
 #
 # Options:
-#   -b bindir   Installation directory (default: ./bin or /usr/local/bin with sudo)
+#   -b bindir   Installation directory (default: ~/.local/bin or ./bin)
 #   -d          Enable debug logging
+#   -f          Force install (skip confirmation prompts)
+#   -q          Quiet mode (minimal output)
 #   -t tag      Install specific version tag (default: latest)
 #   -h          Show help
-#   -V          Show script version
 
 set -e
 
-SCRIPT_VERSION="1.0.0"
 GITHUB_OWNER="andybarilla"
 GITHUB_REPO="gonzo"
 BINARY_NAME="gonzo"
 BINDIR="${BINDIR:-}"
 TAGARG="latest"
 LOG_LEVEL=2
-
-# Color support (disabled if not a terminal or NO_COLOR is set)
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[0;33m'
-    BLUE='\033[0;34m'
-    NC='\033[0m' # No Color
-else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    NC=''
-fi
+FORCE=0
+COLOR=1
 
 tmpdir=""
+
+# Detect color support
+if [ -t 2 ]; then
+    if [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != "dumb" ]; then
+        COLOR=1
+    else
+        COLOR=0
+    fi
+else
+    COLOR=0
+fi
 
 cleanup() {
     if [ -n "${tmpdir}" ] && [ -d "${tmpdir}" ]; then
@@ -51,55 +49,76 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit' INT TERM
 
+# Color support (disabled if not a terminal or NO_COLOR is set)
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    BLUE='\033[0;34m'
+    BOLD='\033[1m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    BOLD=''
+    NC=''
+fi
+
 usage() {
     this="${1}"
     cat <<EOF
-${this}: download and install ${BINARY_NAME}
+${BOLD}${BINARY_NAME} installer${NC}
 
-Usage: ${this} [-b bindir] [-d] [-t tag] [-h] [-V]
+Download and install ${BINARY_NAME} - an autonomous coding agent runner.
 
-Options:
-    -b bindir   Installation directory (default: ./bin or /usr/local/bin with sudo)
+${BOLD}USAGE${NC}
+    ${this} [OPTIONS]
+
+${BOLD}OPTIONS${NC}
+    -b <dir>    Installation directory (default: ~/.local/bin or ./bin)
     -d          Enable debug logging
-    -t tag      Install specific version tag (default: latest)
     -h          Show this help message
-    -V          Show script version
 
-Examples:
-    # Install latest version to ./bin
-    ${this}
+${BOLD}EXAMPLES${NC}
+    # Install latest version
+    curl -fsSL https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/install.sh | sh
 
     # Install to /usr/local/bin (may require sudo)
-    ${this} -b /usr/local/bin
+    curl -fsSL ... | sh -s -- -b /usr/local/bin
 
     # Install specific version
-    ${this} -t v1.0.0
+    curl -fsSL ... | sh -s -- -t v1.0.0
 
     # Install with debug output
-    ${this} -d
+    curl -fsSL ... | sh -s -- -d
 
-Environment Variables:
-    BINDIR      Override default installation directory
-    NO_COLOR    Disable colored output
+${BOLD}UNINSTALL${NC}
+    rm \$(which ${BINARY_NAME})
+
+${BOLD}MORE INFO${NC}
+    https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}
 
 EOF
     exit 2
-}
-
-version() {
-    printf '%s install script version %s\n' "${BINARY_NAME}" "${SCRIPT_VERSION}"
-    exit 0
 }
 
 main() {
     parse_args "${@}"
 
     # Set default BINDIR if not specified
+    # Prefer ~/.local/bin (like Claude Code), fall back to ./bin
     if [ -z "${BINDIR}" ]; then
-        if [ -w "/usr/local/bin" ]; then
-            BINDIR="/usr/local/bin"
-        else
-            BINDIR="./bin"
+        if [ -n "${HOME}" ]; then
+            user_bin="${HOME}/.local/bin"
+            if [ -d "${user_bin}" ] && [ -w "${user_bin}" ]; then
+                BINDIR="${user_bin}"
+            elif [ ! -e "${user_bin}" ] && [ -w "${HOME}/.local" ]; then
+                BINDIR="${user_bin}"
+            elif [ ! -e "${HOME}/.local" ] && [ -w "${HOME}" ]; then
+                BINDIR="${user_bin}"
+            fi
         fi
     fi
 
@@ -112,7 +131,7 @@ main() {
     TAG="$(real_tag "${TAGARG}")"
     VERSION="${TAG#v}"
 
-    log_info "found ${BINARY_NAME} version ${VERSION} for ${GOOS}/${GOARCH}"
+    log_info "Installing ${BOLD}${BINARY_NAME}${NC} ${GREEN}${VERSION}${NC} for ${GOOS}/${GOARCH}"
 
     # Determine binary suffix
     BINSUFFIX=""
@@ -143,7 +162,9 @@ main() {
     }
 
     # Verify checksum
+    log_debug "verifying checksum..."
     hash_sha256_verify "${tmpdir}/${RELEASE_BINARY}" "${tmpdir}/checksums.txt"
+    log_info "${GREEN}Checksum verified${NC}"
 
     # Create installation directory if it doesn't exist
     if [ ! -d "${BINDIR}" ]; then
@@ -151,35 +172,56 @@ main() {
         mkdir -p "${BINDIR}"
     fi
 
-    # Install the binary
+    # Check for existing installation
     INSTALLED_BINARY="${BINDIR}/${BINARY_NAME}${BINSUFFIX}"
+    if [ -f "${INSTALLED_BINARY}" ] && [ "${FORCE}" != "1" ]; then
+        existing_version="$(${INSTALLED_BINARY} --version 2>/dev/null || echo "unknown")"
+        log_info "Existing installation found: ${existing_version}"
+        log_info "Use -f to force reinstall"
+    fi
+
+    # Install the binary
     log_debug "installing to ${INSTALLED_BINARY}"
 
     cp "${tmpdir}/${RELEASE_BINARY}" "${INSTALLED_BINARY}"
     chmod +x "${INSTALLED_BINARY}"
 
-    log_info "installed ${INSTALLED_BINARY}"
+    # Verify installation works
+    if "${INSTALLED_BINARY}" --version >/dev/null 2>&1; then
+        log_debug "installation verified"
+    else
+        log_err "warning: installed binary failed verification"
+    fi
+
+    log_info "${GREEN}Successfully installed${NC} ${INSTALLED_BINARY}"
 
     # Print success message with PATH hint if needed
     case ":${PATH}:" in
     *":${BINDIR}:"*)
-        log_info "run '${BINARY_NAME} --help' to get started"
+        printf '\n'
+        log_info "Run '${BOLD}${BINARY_NAME} --help${NC}' to get started"
         ;;
     *)
-        log_info "add ${BINDIR} to your PATH to run ${BINARY_NAME}"
-        log_info "  export PATH=\"${BINDIR}:\${PATH}\""
+        printf '\n'
+        log_info "${YELLOW}Note:${NC} ${BINDIR} is not in your PATH"
+        log_info "Add it with:"
+        printf '\n'
+        printf '    export PATH="%s:$PATH"\n' "${BINDIR}"
+        printf '\n'
+        log_info "Or add this line to your shell profile (~/.bashrc, ~/.zshrc, etc.)"
         ;;
     esac
 }
 
 parse_args() {
-    while getopts "b:dht:V" arg; do
+    while getopts "b:dfhqt:" arg; do
         case "${arg}" in
         b) BINDIR="${OPTARG}" ;;
         d) LOG_LEVEL=3 ;;
+        f) FORCE=1 ;;
         h) usage "${0}" ;;
+        q) LOG_LEVEL=1 ;;
         t) TAGARG="${OPTARG}" ;;
-        V) version ;;
         *)
             usage "${0}"
             ;;
@@ -218,13 +260,10 @@ check_goos_goarch() {
     darwin/arm64) return 0 ;;
     linux/amd64) return 0 ;;
     linux/arm64) return 0 ;;
-    freebsd/amd64) return 0 ;;
-    freebsd/arm64) return 0 ;;
     windows/amd64) return 0 ;;
-    windows/arm64) return 0 ;;
     *)
         log_crit "unsupported platform: ${1}"
-        log_crit "supported platforms: darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, freebsd/amd64, freebsd/arm64, windows/amd64, windows/arm64"
+        log_crit "supported platforms: darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, windows/amd64"
         exit 1
         ;;
     esac
