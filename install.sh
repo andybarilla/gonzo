@@ -13,15 +13,32 @@
 #   -d          Enable debug logging
 #   -t tag      Install specific version tag (default: latest)
 #   -h          Show help
+#   -V          Show script version
 
 set -e
 
+SCRIPT_VERSION="1.0.0"
 GITHUB_OWNER="andybarilla"
 GITHUB_REPO="gonzo"
 BINARY_NAME="gonzo"
 BINDIR="${BINDIR:-}"
 TAGARG="latest"
 LOG_LEVEL=2
+
+# Color support (disabled if not a terminal or NO_COLOR is set)
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+fi
 
 tmpdir=""
 
@@ -39,13 +56,14 @@ usage() {
     cat <<EOF
 ${this}: download and install ${BINARY_NAME}
 
-Usage: ${this} [-b bindir] [-d] [-t tag] [-h]
+Usage: ${this} [-b bindir] [-d] [-t tag] [-h] [-V]
 
 Options:
     -b bindir   Installation directory (default: ./bin or /usr/local/bin with sudo)
     -d          Enable debug logging
     -t tag      Install specific version tag (default: latest)
     -h          Show this help message
+    -V          Show script version
 
 Examples:
     # Install latest version to ./bin
@@ -60,8 +78,17 @@ Examples:
     # Install with debug output
     ${this} -d
 
+Environment Variables:
+    BINDIR      Override default installation directory
+    NO_COLOR    Disable colored output
+
 EOF
     exit 2
+}
+
+version() {
+    printf '%s install script version %s\n' "${BINARY_NAME}" "${SCRIPT_VERSION}"
+    exit 0
 }
 
 main() {
@@ -146,12 +173,13 @@ main() {
 }
 
 parse_args() {
-    while getopts "b:dht:" arg; do
+    while getopts "b:dht:V" arg; do
         case "${arg}" in
         b) BINDIR="${OPTARG}" ;;
         d) LOG_LEVEL=3 ;;
         h) usage "${0}" ;;
         t) TAGARG="${OPTARG}" ;;
+        V) version ;;
         *)
             usage "${0}"
             ;;
@@ -190,10 +218,13 @@ check_goos_goarch() {
     darwin/arm64) return 0 ;;
     linux/amd64) return 0 ;;
     linux/arm64) return 0 ;;
+    freebsd/amd64) return 0 ;;
+    freebsd/arm64) return 0 ;;
     windows/amd64) return 0 ;;
+    windows/arm64) return 0 ;;
     *)
         log_crit "unsupported platform: ${1}"
-        log_crit "supported platforms: darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, windows/amd64"
+        log_crit "supported platforms: darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, freebsd/amd64, freebsd/arm64, windows/amd64, windows/arm64"
         exit 1
         ;;
     esac
@@ -324,6 +355,13 @@ hash_sha256_verify() {
         return 1
     fi
 
+    # Validate checksum format (must be 64 hex characters)
+    if ! printf '%s' "${want}" | grep -qE '^[a-f0-9]{64}$'; then
+        log_crit "invalid checksum format in checksums file"
+        log_crit "  got: ${want}"
+        return 1
+    fi
+
     got="$(hash_sha256 "${target}")"
     if [ "${want}" != "${got}" ]; then
         log_crit "checksum verification failed for ${basename}"
@@ -342,22 +380,22 @@ is_command() {
 
 log_debug() {
     [ 3 -le "${LOG_LEVEL}" ] || return 0
-    printf '[debug] %s\n' "${*}" 1>&2
+    printf "${BLUE}[debug]${NC} %s\n" "${*}" 1>&2
 }
 
 log_info() {
     [ 2 -le "${LOG_LEVEL}" ] || return 0
-    printf '[info] %s\n' "${*}" 1>&2
+    printf "${GREEN}[info]${NC} %s\n" "${*}" 1>&2
 }
 
 log_err() {
     [ 1 -le "${LOG_LEVEL}" ] || return 0
-    printf '[error] %s\n' "${*}" 1>&2
+    printf "${YELLOW}[error]${NC} %s\n" "${*}" 1>&2
 }
 
 log_crit() {
     [ 0 -le "${LOG_LEVEL}" ] || return 0
-    printf '[critical] %s\n' "${*}" 1>&2
+    printf "${RED}[critical]${NC} %s\n" "${*}" 1>&2
 }
 
 main "${@}"
