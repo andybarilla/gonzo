@@ -30,6 +30,7 @@ var llmModelNames = map[LLMModel][]string{
 }
 
 var llmModel = ModelClaudeOpus
+var quiet bool
 
 // claudeGenerate is a variable that wraps gonzo.ClaudeGenerate for testing.
 var claudeGenerate = gonzo.ClaudeGenerate
@@ -62,6 +63,11 @@ func init() {
 		enumflag.New(&llmModel, "model", llmModelNames, enumflag.EnumCaseInsensitive),
 		"model", "m",
 		fmt.Sprintf("Language model to use (options: %s, %s, %s)", gonzo.CLAUDE_HAIKU, gonzo.CLAUDE_SONNET, gonzo.CLAUDE_OPUS))
+	rootCmd.PersistentFlags().BoolVarP(
+		&quiet,
+		"quiet", "q", false,
+		"Disable output messages",
+	)
 }
 
 func runClaudePrompt(cmd *cobra.Command, args []string) {
@@ -87,7 +93,7 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	response, err := claudeGenerate(cmd.Context(), llmModelNames[llmModel][0], prompt)
+	response, err := claudeGenerate(cmd.Context(), llmModelNames[llmModel][0], prompt, quiet)
 	if err != nil {
 		log.Fatal(err)
 	}

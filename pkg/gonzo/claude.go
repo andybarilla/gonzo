@@ -25,8 +25,11 @@ const CLAUDE_OPUS = "claude-opus-4-5"
 var promptLib embed.FS
 
 // ClaudeGenerate sends a prompt to the Claude API and returns the generated response.
-func ClaudeGenerate(ctx context.Context, model string, prompt string) (string, error) {
+func ClaudeGenerate(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
 	systemPrompt, err := promptLib.ReadFile("prompts/PARAM_TASK_RUNNER.md")
+
+	logInfo(quiet, "Starting Gonzo")
+	logInfo(quiet, "  Model: %s", model)
 
 	err = ensureProgressFileExists()
 	if err != nil {
@@ -44,6 +47,8 @@ func ClaudeGenerate(ctx context.Context, model string, prompt string) (string, e
 		string(systemPrompt),
 		prompt)
 	out, err := cmd.Output()
+
+	logInfo(quiet, "Task completed!")
 	return string(out), err
 }
 
@@ -76,4 +81,10 @@ func ensureProgressFileExists() error {
 		}
 	}
 	return nil
+}
+
+func logInfo(quiet bool, format string, args ...interface{}) {
+	if !quiet {
+		fmt.Printf(format+"\n", args...)
+	}
 }
