@@ -26,6 +26,7 @@ const DefaultOptQuiet = false
 const DefaultMaxIterations = 10
 const DefaultBranch = true
 const DefaultTests = true
+const DefaultPR = false
 const DefaultCompletionSignal = "<promise>COMPLETE</promise>"
 
 //go:embed prompts
@@ -42,6 +43,7 @@ type ClaudeConfig struct {
 	maxIterations    int
 	branch           bool
 	tests            bool
+	pr               bool
 	completionSignal string
 }
 
@@ -54,6 +56,7 @@ func New() *ClaudeConfig {
 		maxIterations:    DefaultMaxIterations,
 		branch:           DefaultBranch,
 		tests:            DefaultTests,
+		pr:               DefaultPR,
 		completionSignal: DefaultCompletionSignal,
 	}
 }
@@ -83,6 +86,11 @@ func (cc *ClaudeConfig) WithTests(tests bool) *ClaudeConfig {
 	return cc
 }
 
+func (cc *ClaudeConfig) WithPR(pr bool) *ClaudeConfig {
+	cc.pr = pr
+	return cc
+}
+
 // Generate sends a prompt to the Claude API and returns the generated response.
 func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, error) {
 	systemPromptTmpl, err := template.ParseFS(promptLib, "prompts/system_prompt.tmpl")
@@ -94,9 +102,11 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, e
 	err = systemPromptTmpl.Execute(&systemPromptBuf, struct {
 		Branch bool
 		Tests  bool
+		PR     bool
 	}{
 		Branch: cc.branch,
 		Tests:  cc.tests,
+		PR:     cc.pr,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to execute system prompt template: %w", err)

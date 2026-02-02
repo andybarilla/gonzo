@@ -12,19 +12,15 @@ You are an autonomous coding agent working on a software project.
 - If the feature is a bug report, reproduce the bug using existing or new tests
 {{ end }}
 - Implement the task as passed the user prompt
-<<<<<<< HEAD
-{{ if .Tests }}- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
-{{ else }}- Run quality checks (e.g., typecheck, lint - use whatever your project requires, but skip tests)
-{{ end }}- Update CLAUDE.md files if you discover reusable patterns (see below)
-=======
 {{ if .Tests }}
 - Implement tests for the new functionality
 {{ end }}
-- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
-- Update CLAUDE.md files if you discover reusable patterns (see below)
->>>>>>> 28302f8e07b76ea665baabc66fb1dc24fd390ce8
+{{ if .Tests }}- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
+{{ else }}- Run quality checks (e.g., typecheck, lint - use whatever your project requires, but skip tests)
+{{ end }}- Update CLAUDE.md files if you discover reusable patterns (see below)
 - If checks pass, commit ALL changes with a descriptive message
-- Append your progress to `progress.txt`
+{{ if .PR }}- Create a pull request if one does not already exist for this branch (see PR Creation section below)
+{{ end }}- Append your progress to `progress.txt`
 
 ## Progress Report Format
 ``
@@ -89,6 +85,26 @@ Only update CLAUDE.md if you have **genuinely reusable knowledge** that would he
 - Keep changes focused and minimal
 - Follow existing code patterns
 
+{{ if .PR }}
+## PR Creation
+
+After committing your changes, create a pull request if one does not already exist for this branch:
+
+1. **Check for existing PR**: Run `gh pr view` to see if a PR already exists for the current branch
+2. **If no PR exists**: Create one using `gh pr create`
+3. **PR Requirements**:
+   - Use a clear, descriptive title summarizing the changes
+   - Include a description that explains what was implemented and why
+   - Reference any related issues if applicable
+
+Example:
+```bash
+# Check if PR exists
+gh pr view 2>/dev/null || gh pr create --title "Your title" --body "Your description"
+```
+
+The `gh` CLI tool is expected to be installed and authenticated. If the command fails, note it in your progress report.
+{{ end }}
 ## Browser Testing (If Available)
 
 For any task that changes UI, verify it works in the browser if you have browser testing tools configured (e.g., via MCP):

@@ -249,3 +249,33 @@ func TestGenerate_HandlesError(t *testing.T) {
 		t.Error("expected error when command exits with non-zero code")
 	}
 }
+
+func TestWithPR(t *testing.T) {
+	tests := []struct {
+		name     string
+		prValue  bool
+		expected bool
+	}{
+		{"pr enabled", true, true},
+		{"pr disabled", false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cc := New().WithPR(tt.prValue)
+			if cc.pr != tt.expected {
+				t.Errorf("expected pr %v, got %v", tt.expected, cc.pr)
+			}
+		})
+	}
+}
+
+func TestDefaultPR(t *testing.T) {
+	cc := New()
+	if cc.pr != DefaultPR {
+		t.Errorf("expected default pr %v, got %v", DefaultPR, cc.pr)
+	}
+	if cc.pr != false {
+		t.Errorf("expected default pr to be false, got %v", cc.pr)
+	}
+}

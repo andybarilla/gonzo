@@ -31,10 +31,11 @@ var maxIterations int
 var quiet bool
 var branch bool
 var tests bool
+var pr bool
 
 // newRunner creates a new gonzo.Runner. Replaceable for testing.
-var newRunner = func(model string, quiet bool, maxIter int, branch bool, tests bool) gonzo.Runner {
-	return gonzo.New().WithModel(model).WithQuiet(quiet).WithMaxIterations(maxIter).WithBranch(branch).WithTests(tests)
+var newRunner = func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool) gonzo.Runner {
+	return gonzo.New().WithModel(model).WithQuiet(quiet).WithMaxIterations(maxIter).WithBranch(branch).WithTests(tests).WithPR(pr)
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -84,6 +85,11 @@ func init() {
 		&tests,
 		"tests", "t", true,
 		"Run tests as part of the quality checks")
+
+	rootCmd.PersistentFlags().BoolVarP(
+		&pr,
+		"pr", "p", false,
+		"Create a pull request if one does not already exist for this branch")
 }
 
 func runClaudePrompt(cmd *cobra.Command, args []string) {
@@ -109,7 +115,7 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	runner := newRunner(llmModelNames[llmModel][0], quiet, maxIterations, branch, tests)
+	runner := newRunner(llmModelNames[llmModel][0], quiet, maxIterations, branch, tests, pr)
 
 	response, err := runner.Generate(cmd.Context(), feature)
 	if err != nil {
