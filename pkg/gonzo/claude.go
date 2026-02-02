@@ -22,6 +22,7 @@ const ClaudeOpus = "claude-opus-4-5"
 
 const DefaultOptClaudeModel = ClaudeOpus
 const DefaultOptQuiet = false
+const DefaultMaxIterations = 10
 
 //go:embed prompts
 var promptLib embed.FS
@@ -32,8 +33,9 @@ type Runner interface {
 }
 
 type ClaudeConfig struct {
-	model string
-	quiet bool
+	model         string
+	quiet         bool
+	maxIterations int
 }
 
 type Option func(*ClaudeConfig)
@@ -48,10 +50,16 @@ func (cc *ClaudeConfig) WithQuiet(quiet bool) *ClaudeConfig {
 	return cc
 }
 
+func (cc *ClaudeConfig) WithMaxIterations(maxIterations int) *ClaudeConfig {
+	cc.maxIterations = maxIterations
+	return cc
+}
+
 func New() *ClaudeConfig {
 	return &ClaudeConfig{
-		model: DefaultOptClaudeModel,
-		quiet: DefaultOptQuiet,
+		model:         DefaultOptClaudeModel,
+		quiet:         DefaultOptQuiet,
+		maxIterations: DefaultMaxIterations,
 	}
 }
 
@@ -61,12 +69,41 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, prompt string) (string, er
 
 	cc.logInfo("Starting Gonzo")
 	cc.logInfo("  Model: %s", cc.model)
+	cc.logInfo("  Max Iterations: %d", cc.maxIterations)
 
 	err = cc.ensureProgressFileExists()
 	if err != nil {
 		return "", fmt.Errorf("failed to ensure progress file exists: %w", err)
 	}
 
+	var out []byte
+
+	for i := 1; i <= cc.maxIterations; i++ {
+		cc.logInfo("===============================================================")
+		cc.logInfo("  Iteration %d of %d", i, cc.maxIterations)
+		cc.logInfo("===============================================================")
+
+		out, err = cc.callClaudeCLI(
+			ctx,
+			string(systemPrompt),
+			prompt)
+		if err != nil {
+			//noinspection GoErrorStringFormatInspection
+			return "", fmt.Errorf("Claude CLI call failed at iteration %d: %w", i, err)
+		}
+
+		cc.logInfo("Task completed!")
+		cc.logInfo("Completed at iteration %d of %d", i, cc.maxIterations)
+	}
+
+	if len(out) == 0 {
+		cc.logInfo("Reached max iterations %d without completion signal", cc.maxIterations)
+		return "", fmt.Errorf("reached max iterations %d without completion signal", cc.maxIterations)
+	}
+	return string(out), err
+}
+
+func (cc *ClaudeConfig) callClaudeCLI(ctx context.Context, systemPrompt string, prompt string) ([]byte, error) {
 	cmd := commandContext(
 		ctx,
 		ClaudeCodeCli,
@@ -75,12 +112,9 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, prompt string) (string, er
 		"--model",
 		cc.model,
 		"--system-prompt",
-		string(systemPrompt),
+		systemPrompt,
 		prompt)
-	out, err := cmd.Output()
-
-	cc.logInfo("Task completed!")
-	return string(out), err
+	return cmd.Output()
 }
 
 func (cc *ClaudeConfig) ensureProgressFileExists() error {

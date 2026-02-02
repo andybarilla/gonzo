@@ -1,6 +1,3 @@
-/*
-Copyright © 2026 Andy Barilla me@andybarilla.com
-*/
 package cmd
 
 import (
@@ -30,11 +27,12 @@ var llmModelNames = map[LLMModel][]string{
 }
 
 var llmModel = ModelClaudeOpus
+var maxIterations int
 var quiet bool
 
 // newRunner creates a new gonzo.Runner. Replaceable for testing.
-var newRunner = func(model string, quiet bool) gonzo.Runner {
-	return gonzo.New().WithModel(model).WithQuiet(quiet)
+var newRunner = func(model string, quiet bool, maxIter int) gonzo.Runner {
+	return gonzo.New().WithModel(model).WithQuiet(quiet).WithMaxIterations(maxIter)
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -65,6 +63,14 @@ func init() {
 		enumflag.New(&llmModel, "model", llmModelNames, enumflag.EnumCaseInsensitive),
 		"model", "m",
 		fmt.Sprintf("Language model to use (options: %s, %s, %s)", gonzo.ClaudeHaiku, gonzo.ClaudeSonnet, gonzo.ClaudeOpus))
+
+	rootCmd.PersistentFlags().IntVarP(
+		&maxIterations,
+		"max-iterations",
+		"i",
+		10,
+		"Maximum number of iterations")
+
 	rootCmd.PersistentFlags().BoolVarP(
 		&quiet,
 		"quiet", "q", false,
@@ -95,7 +101,7 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	runner := newRunner(llmModelNames[llmModel][0], quiet)
+	runner := newRunner(llmModelNames[llmModel][0], quiet, maxIterations)
 
 	response, err := runner.Generate(cmd.Context(), prompt)
 	if err != nil {
