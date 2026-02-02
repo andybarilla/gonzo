@@ -1,0 +1,30 @@
+## Codebase Patterns
+- Install script follows chezmoi/Claude Code patterns: POSIX shell, curl/wget support, SHA256 verification
+- Binary naming convention: `{name}-{os}-{arch}` (e.g., `gonzo-linux-amd64`)
+- Checksums file expected at: `releases/download/{tag}/checksums.txt`
+- Color output respects NO_COLOR environment variable
+
+---
+
+## 2026-02-01 - Enhanced install script with colors and extended platform support
+
+### What was implemented
+- Enhanced the existing `install.sh` with additional features inspired by chezmoi and Claude Code install scripts:
+  - Added colored output (green for info, blue for debug, yellow for errors, red for critical)
+  - Added `-V` flag to display script version
+  - Added FreeBSD support (amd64, arm64)
+  - Added Windows arm64 support
+  - Added checksum format validation (validates 64 hex character SHA256 format)
+  - Documented environment variables (BINDIR, NO_COLOR) in help text
+
+### Files changed
+- `install.sh` - Enhanced with colors, version flag, extended platform support, and security improvements
+
+### Learnings for future iterations
+- The install script already existed and was well-structured following chezmoi patterns
+- Color support should check both `-t 1` (is terminal) AND `NO_COLOR` env var
+- Checksum validation regex: `^[a-f0-9]{64}$` for SHA256
+- Always use `printf` with format string for colored output, not `echo`
+- Script syntax can be validated with `sh -n <script>`
+
+---
