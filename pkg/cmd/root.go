@@ -1,6 +1,3 @@
-/*
-Copyright © 2026 Andy Barilla me@andybarilla.com
-*/
 package cmd
 
 import (
@@ -31,6 +28,7 @@ var llmModelNames = map[LLMModel][]string{
 
 var llmModel = ModelClaudeOpus
 var maxIterations int
+var quiet bool
 
 // claudeGenerate is a variable that wraps gonzo.ClaudeGenerate for testing.
 var claudeGenerate = gonzo.ClaudeGenerate
@@ -70,6 +68,12 @@ func init() {
 		"i",
 		10,
 		"Maximum number of iterations")
+
+	rootCmd.PersistentFlags().BoolVarP(
+		&quiet,
+		"quiet", "q", false,
+		"Disable output messages",
+	)
 }
 
 func runClaudePrompt(cmd *cobra.Command, args []string) {
@@ -91,11 +95,11 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 	}
 
 	if prompt == "" {
-		cmd.Help()
+		_ = cmd.Help()
 		return
 	}
 
-	response, err := claudeGenerate(cmd.Context(), llmModelNames[llmModel][0], prompt)
+	response, err := claudeGenerate(cmd.Context(), llmModelNames[llmModel][0], prompt, quiet)
 	if err != nil {
 		log.Fatal(err)
 	}

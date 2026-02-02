@@ -151,7 +151,7 @@ func TestClaudeGenerate_CLINotFound(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt")
+	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
 
 	// Should fail because claude CLI is not found (or embed.FS issue)
 	if err == nil {
@@ -173,7 +173,7 @@ func TestClaudeGenerate_WithContext(t *testing.T) {
 
 	// The function should handle the cancelled context gracefully
 	// The implementation uses exec.CommandContext to respect context cancellation
-	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt")
+	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
 
 	// With a cancelled context, we expect an error (context cancelled)
 	// Main goal is to ensure no panic occurs
@@ -197,7 +197,7 @@ func TestClaudeGenerate_ModelPassthrough(t *testing.T) {
 	for _, model := range models {
 		t.Run(model, func(t *testing.T) {
 			ctx := context.Background()
-			result, err := ClaudeGenerate(ctx, model, "test")
+			result, err := ClaudeGenerate(ctx, model, "test", false)
 			if err != nil {
 				t.Errorf("unexpected error for model %s: %v", model, err)
 			}
@@ -217,7 +217,7 @@ func TestClaudeGenerate_ReturnsOutput(t *testing.T) {
 	commandContext = mockCommandContext(expectedResponse, 0)
 
 	ctx := context.Background()
-	result, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt")
+	result, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -236,7 +236,7 @@ func TestClaudeGenerate_HandlesError(t *testing.T) {
 	commandContext = mockCommandContext("error output", 1)
 
 	ctx := context.Background()
-	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt")
+	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
 
 	if err == nil {
 		t.Error("expected error when command exits with non-zero code")

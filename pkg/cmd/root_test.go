@@ -15,8 +15,8 @@ import (
 )
 
 // mockClaudeGenerate creates a mock that captures the prompt and model, and returns a canned response.
-func mockClaudeGenerate(capturedModel, capturedPrompt *string, response string, err error) func(ctx context.Context, model string, prompt string) (string, error) {
-	return func(ctx context.Context, model string, prompt string) (string, error) {
+func mockClaudeGenerate(capturedModel, capturedPrompt *string, response string, err error) func(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
+	return func(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
 		if capturedModel != nil {
 			*capturedModel = model
 		}
@@ -128,7 +128,7 @@ func TestRunClaudePrompt_NoInput_ShowsHelp(t *testing.T) {
 
 	// Track if ClaudeGenerate was called (it shouldn't be)
 	generateCalled := false
-	claudeGenerate = func(ctx context.Context, model string, prompt string) (string, error) {
+	claudeGenerate = func(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
 		generateCalled = true
 		return "", nil
 	}
