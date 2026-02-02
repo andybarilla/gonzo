@@ -53,11 +53,11 @@ func TestRunClaudePrompt_WithArgs(t *testing.T) {
 
 	_, _, err := executeCommandC(rootCmd, "hello", "world")
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -91,8 +91,8 @@ func TestRunClaudePrompt_WithPipedStdin(t *testing.T) {
 
 	// Write to the pipe in a goroutine
 	go func() {
-		stdinW.WriteString("piped input\n")
-		stdinW.Close()
+		_, _ = stdinW.WriteString("piped input\n")
+		_ = stdinW.Close()
 	}()
 
 	// Capture stdout
@@ -102,11 +102,11 @@ func TestRunClaudePrompt_WithPipedStdin(t *testing.T) {
 
 	_, _, err := executeCommandC(rootCmd)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -164,8 +164,8 @@ func TestRunClaudePrompt_ArgsOverridePipe(t *testing.T) {
 	os.Stdin = stdinR
 
 	go func() {
-		stdinW.WriteString("piped input\n")
-		stdinW.Close()
+		_, _ = stdinW.WriteString("piped input\n")
+		_ = stdinW.Close()
 	}()
 
 	// Capture stdout
@@ -175,11 +175,11 @@ func TestRunClaudePrompt_ArgsOverridePipe(t *testing.T) {
 
 	_, _, err := executeCommandC(rootCmd, "args", "input")
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -208,8 +208,8 @@ func TestRunClaudePrompt_MultilineStdin(t *testing.T) {
 	os.Stdin = stdinR
 
 	go func() {
-		stdinW.WriteString("line one\nline two\nline three\n")
-		stdinW.Close()
+		_, _ = stdinW.WriteString("line one\nline two\nline three\n")
+		_ = stdinW.Close()
 	}()
 
 	// Capture stdout
@@ -219,11 +219,11 @@ func TestRunClaudePrompt_MultilineStdin(t *testing.T) {
 
 	_, _, err := executeCommandC(rootCmd)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -256,11 +256,11 @@ func TestRunClaudePrompt_DefaultModel(t *testing.T) {
 	llmModel = ModelClaudeOpus
 	_, _, err := executeCommandC(rootCmd, "test prompt")
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -303,11 +303,11 @@ func TestRunClaudePrompt_ModelFlag(t *testing.T) {
 
 			_, _, err := executeCommandC(rootCmd, "--model", tt.flagValue, "test prompt")
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = oldStdout
 
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, _ = io.Copy(&buf, r)
 
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -339,11 +339,11 @@ func TestRunClaudePrompt_ModelFlagShort(t *testing.T) {
 
 	_, _, err := executeCommandC(rootCmd, "-m", "claude-haiku-4-5", "test prompt")
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
