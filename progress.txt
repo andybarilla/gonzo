@@ -3,6 +3,9 @@
 - Binary naming convention: `{name}-{os}-{arch}` (e.g., `gonzo-linux-amd64`)
 - Checksums file expected at: `releases/download/{tag}/checksums.txt`
 - Color output respects NO_COLOR environment variable
+- CLI flags use builder pattern: `New().WithModel().WithQuiet().WithTests()` etc.
+- Template files in prompts/ use Go text/template with conditional blocks for flags
+- Literal `{{...}}` in templates must be escaped as `{{"{{...}}"}}`
 
 ---
 
@@ -26,5 +29,27 @@
 - Checksum validation regex: `^[a-f0-9]{64}$` for SHA256
 - Always use `printf` with format string for colored output, not `echo`
 - Script syntax can be validated with `sh -n <script>`
+
+---
+
+## 2026-02-02 - Add --tests CLI flag for enabling/disabling test running
+
+### What was implemented
+- Added a new `--tests` (`-t`) CLI flag that defaults to `true`
+- When `false`, the system prompt tells the agent to skip tests during quality checks
+- The flag follows the existing pattern for boolean flags (like `--branch`)
+- Updated the system prompt template to conditionally include test instructions
+
+### Files changed
+- `pkg/cmd/root.go` - Added `tests` variable and `--tests` flag definition
+- `pkg/cmd/root_test.go` - Added tests for the new flag (default, explicit values, short form)
+- `pkg/gonzo/claude.go` - Added `tests` field to ClaudeConfig, `WithTests()` method, and template execution
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Added conditional blocks for tests in quality checks section
+
+### Learnings for future iterations
+- The system_prompt.tmpl was not being executed as a template before this change - fixed to use `template.ParseFS` and `Execute`
+- Literal `{{...}}` in Go templates must be escaped as `{{"{{...}}"}}` otherwise they're interpreted as template functions
+- Follow the existing builder pattern (`WithXxx()` methods) when adding new config options
+- Test files follow the pattern of saving/restoring global variables in defer blocks
 
 ---
