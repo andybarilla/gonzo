@@ -13,46 +13,77 @@ import (
 )
 
 // commandContext is a variable that wraps exec.CommandContext for testing.
-// Tests can replace this to mock command execution.
 var commandContext = exec.CommandContext
 
-const CLAUDE_CODE_CLI = "claude"
-const CLAUDE_HAIKU = "claude-haiku-4-5"
-const CLAUDE_SONNET = "claude-sonnet-4-5"
-const CLAUDE_OPUS = "claude-opus-4-5"
+const ClaudeCodeCli = "claude"
+const ClaudeHaiku = "claude-haiku-4-5"
+const ClaudeSonnet = "claude-sonnet-4-5"
+const ClaudeOpus = "claude-opus-4-5"
+
+const DefaultOptClaudeModel = ClaudeOpus
+const DefaultOptQuiet = false
 
 //go:embed prompts
 var promptLib embed.FS
 
-// ClaudeGenerate sends a prompt to the Claude API and returns the generated response.
-func ClaudeGenerate(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
+// Runner is the interface for generating responses from Claude.
+type Runner interface {
+	Generate(ctx context.Context, prompt string) (string, error)
+}
+
+type ClaudeConfig struct {
+	model string
+	quiet bool
+}
+
+type Option func(*ClaudeConfig)
+
+func (cc *ClaudeConfig) WithModel(model string) *ClaudeConfig {
+	cc.model = model
+	return cc
+}
+
+func (cc *ClaudeConfig) WithQuiet(quiet bool) *ClaudeConfig {
+	cc.quiet = quiet
+	return cc
+}
+
+func New() *ClaudeConfig {
+	return &ClaudeConfig{
+		model: DefaultOptClaudeModel,
+		quiet: DefaultOptQuiet,
+	}
+}
+
+// Generate sends a prompt to the Claude API and returns the generated response.
+func (cc *ClaudeConfig) Generate(ctx context.Context, prompt string) (string, error) {
 	systemPrompt, err := promptLib.ReadFile("prompts/PARAM_TASK_RUNNER.md")
 
-	logInfo(quiet, "Starting Gonzo")
-	logInfo(quiet, "  Model: %s", model)
+	cc.logInfo("Starting Gonzo")
+	cc.logInfo("  Model: %s", cc.model)
 
-	err = ensureProgressFileExists()
+	err = cc.ensureProgressFileExists()
 	if err != nil {
 		return "", fmt.Errorf("failed to ensure progress file exists: %w", err)
 	}
 
 	cmd := commandContext(
 		ctx,
-		CLAUDE_CODE_CLI,
+		ClaudeCodeCli,
 		"--dangerously-skip-permissions",
 		"--print",
 		"--model",
-		model,
+		cc.model,
 		"--system-prompt",
 		string(systemPrompt),
 		prompt)
 	out, err := cmd.Output()
 
-	logInfo(quiet, "Task completed!")
+	cc.logInfo("Task completed!")
 	return string(out), err
 }
 
-func ensureProgressFileExists() error {
+func (cc *ClaudeConfig) ensureProgressFileExists() error {
 	dir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
@@ -83,8 +114,8 @@ func ensureProgressFileExists() error {
 	return nil
 }
 
-func logInfo(quiet bool, format string, args ...interface{}) {
-	if !quiet {
+func (cc *ClaudeConfig) logInfo(format string, args ...interface{}) {
+	if !cc.quiet {
 		fmt.Printf(format+"\n", args...)
 	}
 }
