@@ -21,17 +21,19 @@ const (
 )
 
 var llmModelNames = map[LLMModel][]string{
-	ModelClaudeHaiku:  {gonzo.CLAUDE_HAIKU},
-	ModelClaudeSonnet: {gonzo.CLAUDE_SONNET},
-	ModelClaudeOpus:   {gonzo.CLAUDE_OPUS},
+	ModelClaudeHaiku:  {gonzo.ClaudeHaiku},
+	ModelClaudeSonnet: {gonzo.ClaudeSonnet},
+	ModelClaudeOpus:   {gonzo.ClaudeOpus},
 }
 
 var llmModel = ModelClaudeOpus
 var maxIterations int
 var quiet bool
 
-// claudeGenerate is a variable that wraps gonzo.ClaudeGenerate for testing.
-var claudeGenerate = gonzo.ClaudeGenerate
+// newRunner creates a new gonzo.Runner. Replaceable for testing.
+var newRunner = func(model string, quiet bool) gonzo.Runner {
+	return gonzo.New().WithModel(model).WithQuiet(quiet)
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -60,7 +62,7 @@ func init() {
 	rootCmd.PersistentFlags().VarP(
 		enumflag.New(&llmModel, "model", llmModelNames, enumflag.EnumCaseInsensitive),
 		"model", "m",
-		fmt.Sprintf("Language model to use (options: %s, %s, %s)", gonzo.CLAUDE_HAIKU, gonzo.CLAUDE_SONNET, gonzo.CLAUDE_OPUS))
+		fmt.Sprintf("Language model to use (options: %s, %s, %s)", gonzo.ClaudeHaiku, gonzo.ClaudeSonnet, gonzo.ClaudeOpus))
 
 	rootCmd.PersistentFlags().IntVarP(
 		&maxIterations,
@@ -99,7 +101,9 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	response, err := claudeGenerate(cmd.Context(), llmModelNames[llmModel][0], prompt, quiet)
+	runner := newRunner(llmModelNames[llmModel][0], quiet)
+
+	response, err := runner.Generate(cmd.Context(), prompt)
 	if err != nil {
 		log.Fatal(err)
 	}

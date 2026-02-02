@@ -6,6 +6,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"gonzo/pkg/gonzo"
 	"io"
 	"os"
 	"strings"
@@ -14,16 +15,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mockClaudeGenerate creates a mock that captures the prompt and model, and returns a canned response.
-func mockClaudeGenerate(capturedModel, capturedPrompt *string, response string, err error) func(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
-	return func(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
-		if capturedModel != nil {
-			*capturedModel = model
-		}
-		if capturedPrompt != nil {
-			*capturedPrompt = prompt
-		}
-		return response, err
+// mockRunner implements gonzo.Runner for testing.
+type mockRunner struct {
+	model    string
+	quiet    bool
+	response string
+	err      error
+	// Captured values
+	capturedPrompt string
+	generateCalled bool
+}
+
+func (m *mockRunner) Generate(ctx context.Context, prompt string) (string, error) {
+	m.capturedPrompt = prompt
+	m.generateCalled = true
+	return m.response, m.err
+}
+
+// mockRunnerFactory creates a factory function that returns a mock runner and captures model/quiet.
+func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool) gonzo.Runner {
+	return func(model string, quiet bool) gonzo.Runner {
+		mock.model = model
+		mock.quiet = quiet
+		return mock
 	}
 }
 
@@ -40,11 +54,11 @@ func executeCommandC(root *cobra.Command, args ...string) (c *cobra.Command, out
 
 func TestRunClaudePrompt_WithArgs(t *testing.T) {
 	// Save original and restore after test
-	originalClaudeGenerate := claudeGenerate
-	defer func() { claudeGenerate = originalClaudeGenerate }()
+	originalNewRunner := newRunner
+	defer func() { newRunner = originalNewRunner }()
 
-	var capturedPrompt string
-	claudeGenerate = mockClaudeGenerate(nil, &capturedPrompt, "mocked response", nil)
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -63,8 +77,8 @@ func TestRunClaudePrompt_WithArgs(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if capturedPrompt != "hello world" {
-		t.Errorf("expected prompt 'hello world', got %q", capturedPrompt)
+	if mock.capturedPrompt != "hello world" {
+		t.Errorf("expected prompt 'hello world', got %q", mock.capturedPrompt)
 	}
 
 	output := strings.TrimSpace(buf.String())
@@ -75,15 +89,15 @@ func TestRunClaudePrompt_WithArgs(t *testing.T) {
 
 func TestRunClaudePrompt_WithPipedStdin(t *testing.T) {
 	// Save original and restore after test
-	originalClaudeGenerate := claudeGenerate
+	originalNewRunner := newRunner
 	originalStdin := os.Stdin
 	defer func() {
-		claudeGenerate = originalClaudeGenerate
+		newRunner = originalNewRunner
 		os.Stdin = originalStdin
 	}()
 
-	var capturedPrompt string
-	claudeGenerate = mockClaudeGenerate(nil, &capturedPrompt, "mocked response", nil)
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
 
 	// Create a pipe to simulate stdin
 	stdinR, stdinW, _ := os.Pipe()
@@ -112,34 +126,28 @@ func TestRunClaudePrompt_WithPipedStdin(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if capturedPrompt != "piped input" {
-		t.Errorf("expected prompt 'piped input', got %q", capturedPrompt)
+	if mock.capturedPrompt != "piped input" {
+		t.Errorf("expected prompt 'piped input', got %q", mock.capturedPrompt)
 	}
 }
 
 func TestRunClaudePrompt_NoInput_ShowsHelp(t *testing.T) {
 	// Save original and restore after test
-	originalClaudeGenerate := claudeGenerate
-	originalStdin := os.Stdin
+	originalNewRunner := newRunner
 	defer func() {
-		claudeGenerate = originalClaudeGenerate
-		os.Stdin = originalStdin
+		newRunner = originalNewRunner
 	}()
 
-	// Track if ClaudeGenerate was called (it shouldn't be)
-	generateCalled := false
-	claudeGenerate = func(ctx context.Context, model string, prompt string, quiet bool) (string, error) {
-		generateCalled = true
-		return "", nil
-	}
+	mock := &mockRunner{}
+	newRunner = mockRunnerFactory(mock)
 
 	_, output, err := executeCommandC(rootCmd)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if generateCalled {
-		t.Error("ClaudeGenerate should not be called when no input is provided")
+	if mock.generateCalled {
+		t.Error("Generate should not be called when no input is provided")
 	}
 
 	if !strings.Contains(output, "Usage:") {
@@ -149,15 +157,15 @@ func TestRunClaudePrompt_NoInput_ShowsHelp(t *testing.T) {
 
 func TestRunClaudePrompt_ArgsOverridePipe(t *testing.T) {
 	// Save original and restore after test
-	originalClaudeGenerate := claudeGenerate
+	originalNewRunner := newRunner
 	originalStdin := os.Stdin
 	defer func() {
-		claudeGenerate = originalClaudeGenerate
+		newRunner = originalNewRunner
 		os.Stdin = originalStdin
 	}()
 
-	var capturedPrompt string
-	claudeGenerate = mockClaudeGenerate(nil, &capturedPrompt, "mocked response", nil)
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
 
 	// Create a pipe with data (simulating piped stdin)
 	stdinR, stdinW, _ := os.Pipe()
@@ -186,22 +194,22 @@ func TestRunClaudePrompt_ArgsOverridePipe(t *testing.T) {
 	}
 
 	// Args should take precedence over piped stdin
-	if capturedPrompt != "args input" {
-		t.Errorf("expected prompt 'args input', got %q", capturedPrompt)
+	if mock.capturedPrompt != "args input" {
+		t.Errorf("expected prompt 'args input', got %q", mock.capturedPrompt)
 	}
 }
 
 func TestRunClaudePrompt_MultilineStdin(t *testing.T) {
 	// Save original and restore after test
-	originalClaudeGenerate := claudeGenerate
+	originalNewRunner := newRunner
 	originalStdin := os.Stdin
 	defer func() {
-		claudeGenerate = originalClaudeGenerate
+		newRunner = originalNewRunner
 		os.Stdin = originalStdin
 	}()
 
-	var capturedPrompt string
-	claudeGenerate = mockClaudeGenerate(nil, &capturedPrompt, "mocked response", nil)
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
 
 	// Create a pipe with multiline input
 	stdinR, stdinW, _ := os.Pipe()
@@ -230,22 +238,22 @@ func TestRunClaudePrompt_MultilineStdin(t *testing.T) {
 	}
 
 	expectedPrompt := "line one\nline two\nline three"
-	if capturedPrompt != expectedPrompt {
-		t.Errorf("expected prompt %q, got %q", expectedPrompt, capturedPrompt)
+	if mock.capturedPrompt != expectedPrompt {
+		t.Errorf("expected prompt %q, got %q", expectedPrompt, mock.capturedPrompt)
 	}
 }
 
 func TestRunClaudePrompt_DefaultModel(t *testing.T) {
 	// Save original and restore after test
-	originalClaudeGenerate := claudeGenerate
+	originalNewRunner := newRunner
 	originalModel := llmModel
 	defer func() {
-		claudeGenerate = originalClaudeGenerate
+		newRunner = originalNewRunner
 		llmModel = originalModel
 	}()
 
-	var capturedModel string
-	claudeGenerate = mockClaudeGenerate(&capturedModel, nil, "mocked response", nil)
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -267,8 +275,8 @@ func TestRunClaudePrompt_DefaultModel(t *testing.T) {
 	}
 
 	expectedModel := "claude-opus-4-5"
-	if capturedModel != expectedModel {
-		t.Errorf("expected default model %q, got %q", expectedModel, capturedModel)
+	if mock.model != expectedModel {
+		t.Errorf("expected default model %q, got %q", expectedModel, mock.model)
 	}
 }
 
@@ -286,15 +294,15 @@ func TestRunClaudePrompt_ModelFlag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Save original and restore after test
-			originalClaudeGenerate := claudeGenerate
+			originalNewRunner := newRunner
 			originalModel := llmModel
 			defer func() {
-				claudeGenerate = originalClaudeGenerate
+				newRunner = originalNewRunner
 				llmModel = originalModel
 			}()
 
-			var capturedModel string
-			claudeGenerate = mockClaudeGenerate(&capturedModel, nil, "mocked response", nil)
+			mock := &mockRunner{response: "mocked response"}
+			newRunner = mockRunnerFactory(mock)
 
 			// Capture stdout
 			oldStdout := os.Stdout
@@ -313,8 +321,8 @@ func TestRunClaudePrompt_ModelFlag(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if capturedModel != tt.expectedModel {
-				t.Errorf("expected model %q, got %q", tt.expectedModel, capturedModel)
+			if mock.model != tt.expectedModel {
+				t.Errorf("expected model %q, got %q", tt.expectedModel, mock.model)
 			}
 		})
 	}
@@ -322,15 +330,15 @@ func TestRunClaudePrompt_ModelFlag(t *testing.T) {
 
 func TestRunClaudePrompt_ModelFlagShort(t *testing.T) {
 	// Save original and restore after test
-	originalClaudeGenerate := claudeGenerate
+	originalNewRunner := newRunner
 	originalModel := llmModel
 	defer func() {
-		claudeGenerate = originalClaudeGenerate
+		newRunner = originalNewRunner
 		llmModel = originalModel
 	}()
 
-	var capturedModel string
-	claudeGenerate = mockClaudeGenerate(&capturedModel, nil, "mocked response", nil)
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -350,8 +358,8 @@ func TestRunClaudePrompt_ModelFlagShort(t *testing.T) {
 	}
 
 	expectedModel := "claude-haiku-4-5"
-	if capturedModel != expectedModel {
-		t.Errorf("expected model %q, got %q", expectedModel, capturedModel)
+	if mock.model != expectedModel {
+		t.Errorf("expected model %q, got %q", expectedModel, mock.model)
 	}
 }
 

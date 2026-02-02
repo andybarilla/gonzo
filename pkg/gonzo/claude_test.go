@@ -46,10 +46,10 @@ func TestClaudeConstants(t *testing.T) {
 		constant string
 		expected string
 	}{
-		{"CLAUDE_CODE_CLI", CLAUDE_CODE_CLI, "claude"},
-		{"CLAUDE_HAIKU", CLAUDE_HAIKU, "claude-haiku-4-5"},
-		{"CLAUDE_SONNET", CLAUDE_SONNET, "claude-sonnet-4-5"},
-		{"CLAUDE_OPUS", CLAUDE_OPUS, "claude-opus-4-5"},
+		{"CLAUDE_CODE_CLI", ClaudeCodeCli, "claude"},
+		{"CLAUDE_HAIKU", ClaudeHaiku, "claude-haiku-4-5"},
+		{"CLAUDE_SONNET", ClaudeSonnet, "claude-sonnet-4-5"},
+		{"CLAUDE_OPUS", ClaudeOpus, "claude-opus-4-5"},
 	}
 
 	for _, tt := range tests {
@@ -87,7 +87,8 @@ func TestEnsureProgressFileExists_CreatesFile(t *testing.T) {
 	}
 
 	// Call the function - note: this will fail if promptLib isn't properly embedded
-	err = ensureProgressFileExists()
+	cc := New()
+	err = cc.ensureProgressFileExists()
 
 	// The function may fail due to embed.FS not being initialized in test context
 	// This is expected behavior - the embed directive requires the prompts directory
@@ -128,7 +129,8 @@ func TestEnsureProgressFileExists_ExistingFile(t *testing.T) {
 	}
 
 	// Call the function
-	err = ensureProgressFileExists()
+	cc := New()
+	err = cc.ensureProgressFileExists()
 	if err != nil {
 		t.Skipf("Skipping test - embed.FS not available in test context: %v", err)
 	}
@@ -144,14 +146,15 @@ func TestEnsureProgressFileExists_ExistingFile(t *testing.T) {
 	}
 }
 
-func TestClaudeGenerate_CLINotFound(t *testing.T) {
+func TestGenerate_CLINotFound(t *testing.T) {
 	// Test behavior when claude CLI is not available
-	if _, err := exec.LookPath(CLAUDE_CODE_CLI); err == nil {
+	if _, err := exec.LookPath(ClaudeCodeCli); err == nil {
 		t.Skip("Skipping test - claude CLI is available on this system")
 	}
 
 	ctx := context.Background()
-	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
+	cc := New().WithModel(ClaudeSonnet).WithQuiet(true)
+	_, err := cc.Generate(ctx, "test prompt")
 
 	// Should fail because claude CLI is not found (or embed.FS issue)
 	if err == nil {
@@ -159,7 +162,7 @@ func TestClaudeGenerate_CLINotFound(t *testing.T) {
 	}
 }
 
-func TestClaudeGenerate_WithContext(t *testing.T) {
+func TestGenerate_WithContext(t *testing.T) {
 	// Save original and restore after test
 	originalCommandContext := commandContext
 	defer func() { commandContext = originalCommandContext }()
@@ -173,14 +176,15 @@ func TestClaudeGenerate_WithContext(t *testing.T) {
 
 	// The function should handle the cancelled context gracefully
 	// The implementation uses exec.CommandContext to respect context cancellation
-	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
+	cc := New().WithModel(ClaudeSonnet).WithQuiet(true)
+	_, err := cc.Generate(ctx, "test prompt")
 
 	// With a cancelled context, we expect an error (context cancelled)
 	// Main goal is to ensure no panic occurs
 	_ = err
 }
 
-func TestClaudeGenerate_ModelPassthrough(t *testing.T) {
+func TestGenerate_ModelPassthrough(t *testing.T) {
 	// Save original and restore after test
 	originalCommandContext := commandContext
 	defer func() { commandContext = originalCommandContext }()
@@ -189,15 +193,16 @@ func TestClaudeGenerate_ModelPassthrough(t *testing.T) {
 	commandContext = mockCommandContext("mocked response", 0)
 
 	models := []string{
-		CLAUDE_HAIKU,
-		CLAUDE_SONNET,
-		CLAUDE_OPUS,
+		ClaudeHaiku,
+		ClaudeSonnet,
+		ClaudeOpus,
 	}
 
 	for _, model := range models {
 		t.Run(model, func(t *testing.T) {
 			ctx := context.Background()
-			result, err := ClaudeGenerate(ctx, model, "test", false)
+			cc := New().WithModel(model).WithQuiet(true)
+			result, err := cc.Generate(ctx, "test")
 			if err != nil {
 				t.Errorf("unexpected error for model %s: %v", model, err)
 			}
@@ -208,7 +213,7 @@ func TestClaudeGenerate_ModelPassthrough(t *testing.T) {
 	}
 }
 
-func TestClaudeGenerate_ReturnsOutput(t *testing.T) {
+func TestGenerate_ReturnsOutput(t *testing.T) {
 	// Save original and restore after test
 	originalCommandContext := commandContext
 	defer func() { commandContext = originalCommandContext }()
@@ -217,7 +222,8 @@ func TestClaudeGenerate_ReturnsOutput(t *testing.T) {
 	commandContext = mockCommandContext(expectedResponse, 0)
 
 	ctx := context.Background()
-	result, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
+	cc := New().WithModel(ClaudeSonnet).WithQuiet(true)
+	result, err := cc.Generate(ctx, "test prompt")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -227,7 +233,7 @@ func TestClaudeGenerate_ReturnsOutput(t *testing.T) {
 	}
 }
 
-func TestClaudeGenerate_HandlesError(t *testing.T) {
+func TestGenerate_HandlesError(t *testing.T) {
 	// Save original and restore after test
 	originalCommandContext := commandContext
 	defer func() { commandContext = originalCommandContext }()
@@ -236,7 +242,8 @@ func TestClaudeGenerate_HandlesError(t *testing.T) {
 	commandContext = mockCommandContext("error output", 1)
 
 	ctx := context.Background()
-	_, err := ClaudeGenerate(ctx, CLAUDE_SONNET, "test prompt", false)
+	cc := New().WithModel(ClaudeSonnet).WithQuiet(true)
+	_, err := cc.Generate(ctx, "test prompt")
 
 	if err == nil {
 		t.Error("expected error when command exits with non-zero code")
