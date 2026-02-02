@@ -21,6 +21,7 @@ type mockRunner struct {
 	quiet         bool
 	maxIterations int
 	branch        bool
+	tests         bool
 	response      string
 	err           error
 	// Captured values
@@ -35,12 +36,13 @@ func (m *mockRunner) Generate(ctx context.Context, prompt string) (string, error
 }
 
 // mockRunnerFactory creates a factory function that returns a mock runner and captures options.
-func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, branch bool) gonzo.Runner {
-	return func(model string, quiet bool, maxIter int, branch bool) gonzo.Runner {
+func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, branch bool, tests bool) gonzo.Runner {
+	return func(model string, quiet bool, maxIter int, branch bool, tests bool) gonzo.Runner {
 		mock.model = model
 		mock.quiet = quiet
 		mock.maxIterations = maxIter
 		mock.branch = branch
+		mock.tests = tests
 		return mock
 	}
 }
@@ -624,5 +626,122 @@ func TestRunClaudePrompt_BranchFlagShort(t *testing.T) {
 
 	if mock.branch {
 		t.Errorf("expected branch false, got %v", mock.branch)
+	}
+}
+
+func TestRunClaudePrompt_DefaultTests(t *testing.T) {
+	// Save original and restore after test
+	originalNewRunner := newRunner
+	originalTests := tests
+	defer func() {
+		newRunner = originalNewRunner
+		tests = originalTests
+	}()
+
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Reset to default (flag default is true)
+	tests = true
+	_, _, err := executeCommandC(rootCmd, "test prompt")
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !mock.tests {
+		t.Errorf("expected default tests true, got %v", mock.tests)
+	}
+}
+
+func TestRunClaudePrompt_TestsFlag(t *testing.T) {
+	testCases := []struct {
+		name          string
+		flagValue     string
+		expectedTests bool
+	}{
+		{"tests true", "true", true},
+		{"tests false", "false", false},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original and restore after test
+			originalNewRunner := newRunner
+			originalTests := tests
+			defer func() {
+				newRunner = originalNewRunner
+				tests = originalTests
+			}()
+
+			mock := &mockRunner{response: "mocked response"}
+			newRunner = mockRunnerFactory(mock)
+
+			// Capture stdout
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			_, _, err := executeCommandC(rootCmd, "--tests="+tt.flagValue, "test prompt")
+
+			_ = w.Close()
+			os.Stdout = oldStdout
+
+			var buf bytes.Buffer
+			_, _ = io.Copy(&buf, r)
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if mock.tests != tt.expectedTests {
+				t.Errorf("expected tests %v, got %v", tt.expectedTests, mock.tests)
+			}
+		})
+	}
+}
+
+func TestRunClaudePrompt_TestsFlagShort(t *testing.T) {
+	// Save original and restore after test
+	originalNewRunner := newRunner
+	originalTests := tests
+	defer func() {
+		newRunner = originalNewRunner
+		tests = originalTests
+	}()
+
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_, _, err := executeCommandC(rootCmd, "-t=false", "test prompt")
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if mock.tests {
+		t.Errorf("expected tests false, got %v", mock.tests)
 	}
 }

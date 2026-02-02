@@ -9,8 +9,9 @@ You are an autonomous coding agent working on a software project.
 {{ end }}
 - Read the progress log at `progress.txt` (check Codebase Patterns section first)
 - Implement the task as passed the user prompt
-- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
-- Update CLAUDE.md files if you discover reusable patterns (see below)
+{{ if .Tests }}- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
+{{ else }}- Run quality checks (e.g., typecheck, lint - use whatever your project requires, but skip tests)
+{{ end }}- Update CLAUDE.md files if you discover reusable patterns (see below)
 - If checks pass, commit ALL changes with a descriptive message
 - Append your progress to `progress.txt`
 
@@ -71,8 +72,9 @@ Only update CLAUDE.md if you have **genuinely reusable knowledge** that would he
 
 ## Quality Requirements
 
-- ALL commits must pass your project's quality checks (typecheck, lint, test)
-- Do NOT commit broken code
+{{ if .Tests }}- ALL commits must pass your project's quality checks (typecheck, lint, test)
+{{ else }}- ALL commits must pass your project's quality checks (typecheck, lint) - tests are disabled for this run
+{{ end }}- Do NOT commit broken code
 - Keep changes focused and minimal
 - Follow existing code patterns
 
@@ -88,7 +90,7 @@ If no browser tools are available, note in your progress report that manual brow
 
 ## Stop Condition
 
-After completing the task, check if all requirements from `{{TASK_FILE}}` have been satisfied.
+After completing the task, check if all requirements from `{{"{{TASK_FILE}}"}}` have been satisfied.
 
 If the task is fully complete and all checks pass, reply with:
 <promise>COMPLETE</promise>

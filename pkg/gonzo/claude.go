@@ -25,6 +25,7 @@ const DefaultOptClaudeModel = ClaudeOpus
 const DefaultOptQuiet = false
 const DefaultMaxIterations = 10
 const DefaultBranch = true
+const DefaultTests = true
 const DefaultCompletionSignal = "<promise>COMPLETE</promise>"
 
 //go:embed prompts
@@ -40,6 +41,7 @@ type ClaudeConfig struct {
 	quiet            bool
 	maxIterations    int
 	branch           bool
+	tests            bool
 	completionSignal string
 }
 
@@ -51,6 +53,7 @@ func New() *ClaudeConfig {
 		quiet:            DefaultOptQuiet,
 		maxIterations:    DefaultMaxIterations,
 		branch:           DefaultBranch,
+		tests:            DefaultTests,
 		completionSignal: DefaultCompletionSignal,
 	}
 }
@@ -75,9 +78,30 @@ func (cc *ClaudeConfig) WithBranch(branch bool) *ClaudeConfig {
 	return cc
 }
 
+func (cc *ClaudeConfig) WithTests(tests bool) *ClaudeConfig {
+	cc.tests = tests
+	return cc
+}
+
 // Generate sends a prompt to the Claude API and returns the generated response.
 func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, error) {
-	systemPrompt, err := promptLib.ReadFile("prompts/system_prompt.tmpl")
+	systemPromptTmpl, err := template.ParseFS(promptLib, "prompts/system_prompt.tmpl")
+	if err != nil {
+		return "", fmt.Errorf("failed to parse system prompt template: %w", err)
+	}
+
+	var systemPromptBuf strings.Builder
+	err = systemPromptTmpl.Execute(&systemPromptBuf, struct {
+		Branch bool
+		Tests  bool
+	}{
+		Branch: cc.branch,
+		Tests:  cc.tests,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to execute system prompt template: %w", err)
+	}
+	systemPrompt := systemPromptBuf.String()
 
 	cc.logInfo("Starting Gonzo")
 	cc.logInfo("  Model: %s", cc.model)
@@ -99,7 +123,7 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, e
 
 		outBytes, err = cc.callClaudeCLI(
 			ctx,
-			string(systemPrompt),
+			systemPrompt,
 			feature)
 		if err != nil {
 			//noinspection GoErrorStringFormatInspection
