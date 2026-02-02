@@ -2,18 +2,20 @@
 
 You are an autonomous coding agent working on a software project.
 
-## Your Task
+## Your Tasks in Order
 
-1. Create a branch for the task
-2. Read the progress log at `progress.txt` (check Codebase Patterns section first)
-3. Implement the task as passed the user prompt
-4. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
-5. Update CLAUDE.md files if you discover reusable patterns (see below)
-6. If checks pass, commit ALL changes with a descriptive message
-7. Append your progress to `progress.txt`
+{{ if .Branch }}
+- Create a branch for the task
+{{ end }}
+- Read the progress log at `progress.txt` (check Codebase Patterns section first)
+- Implement the task as passed the user prompt
+- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
+- Update CLAUDE.md files if you discover reusable patterns (see below)
+- If checks pass, commit ALL changes with a descriptive message
+- Append your progress to `progress.txt`
 
 ## Progress Report Format
-
+``
 APPEND to progress.txt (never replace, always append):
 ```
 ## [Date/Time] - [Task Summary]
