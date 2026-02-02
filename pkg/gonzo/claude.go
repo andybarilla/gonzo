@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -23,6 +24,7 @@ const ClaudeOpus = "claude-opus-4-5"
 const DefaultOptClaudeModel = ClaudeOpus
 const DefaultOptQuiet = false
 const DefaultMaxIterations = 10
+const DefaultCompletionSignal = "<promise>COMPLETE</promise>"
 
 //go:embed prompts
 var promptLib embed.FS
@@ -33,12 +35,22 @@ type Runner interface {
 }
 
 type ClaudeConfig struct {
-	model         string
-	quiet         bool
-	maxIterations int
+	model            string
+	quiet            bool
+	maxIterations    int
+	completionSignal string
 }
 
 type Option func(*ClaudeConfig)
+
+func New() *ClaudeConfig {
+	return &ClaudeConfig{
+		model:            DefaultOptClaudeModel,
+		quiet:            DefaultOptQuiet,
+		maxIterations:    DefaultMaxIterations,
+		completionSignal: DefaultCompletionSignal,
+	}
+}
 
 func (cc *ClaudeConfig) WithModel(model string) *ClaudeConfig {
 	cc.model = model
@@ -55,14 +67,6 @@ func (cc *ClaudeConfig) WithMaxIterations(maxIterations int) *ClaudeConfig {
 	return cc
 }
 
-func New() *ClaudeConfig {
-	return &ClaudeConfig{
-		model:         DefaultOptClaudeModel,
-		quiet:         DefaultOptQuiet,
-		maxIterations: DefaultMaxIterations,
-	}
-}
-
 // Generate sends a prompt to the Claude API and returns the generated response.
 func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, error) {
 	systemPrompt, err := promptLib.ReadFile("prompts/PARAM_TASK_RUNNER.md")
@@ -76,14 +80,16 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, e
 		return "", fmt.Errorf("failed to ensure progress file exists: %w", err)
 	}
 
-	var out []byte
+	var out string
 
 	for i := 1; i <= cc.maxIterations; i++ {
 		cc.logInfo("===============================================================")
 		cc.logInfo("  Iteration %d of %d", i, cc.maxIterations)
 		cc.logInfo("===============================================================")
 
-		out, err = cc.callClaudeCLI(
+		var outBytes []byte
+
+		outBytes, err = cc.callClaudeCLI(
 			ctx,
 			string(systemPrompt),
 			feature)
@@ -92,15 +98,19 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, e
 			return "", fmt.Errorf("Claude CLI call failed at iteration %d: %w", i, err)
 		}
 
-		cc.logInfo("Task completed!")
-		cc.logInfo("Completed at iteration %d of %d", i, cc.maxIterations)
+		out = string(outBytes)
+		if strings.Contains(out, "") {
+			cc.logInfo("Task completed!")
+			cc.logInfo("Completed at iteration %d of %d", i, cc.maxIterations)
+			break
+		}
 	}
 
 	if len(out) == 0 {
 		cc.logInfo("Reached max iterations %d without completion signal", cc.maxIterations)
 		return "", fmt.Errorf("reached max iterations %d without completion signal", cc.maxIterations)
 	}
-	return string(out), err
+	return out, err
 }
 
 func (cc *ClaudeConfig) callClaudeCLI(ctx context.Context, systemPrompt string, prompt string) ([]byte, error) {
