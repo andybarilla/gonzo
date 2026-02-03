@@ -27,7 +27,6 @@ const DefaultMaxIterations = 10
 const DefaultBranch = true
 const DefaultTests = true
 const DefaultPR = false
-const DefaultCommitAuthor = "Gonzo <gonzo@barilla.you>"
 const DefaultCompletionSignal = "<promise>COMPLETE</promise>"
 
 //go:embed prompts
@@ -45,7 +44,6 @@ type ClaudeConfig struct {
 	branch           bool
 	tests            bool
 	pr               bool
-	commitAuthor     string
 	completionSignal string
 }
 
@@ -59,7 +57,6 @@ func New() *ClaudeConfig {
 		branch:           DefaultBranch,
 		tests:            DefaultTests,
 		pr:               DefaultPR,
-		commitAuthor:     DefaultCommitAuthor,
 		completionSignal: DefaultCompletionSignal,
 	}
 }
@@ -94,11 +91,6 @@ func (cc *ClaudeConfig) WithPR(pr bool) *ClaudeConfig {
 	return cc
 }
 
-func (cc *ClaudeConfig) WithCommitAuthor(commitAuthor string) *ClaudeConfig {
-	cc.commitAuthor = commitAuthor
-	return cc
-}
-
 // Generate sends a prompt to the Claude API and returns the generated response.
 func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, error) {
 	systemPromptTmpl, err := template.ParseFS(promptLib, "prompts/system_prompt.tmpl")
@@ -108,15 +100,13 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, e
 
 	var systemPromptBuf strings.Builder
 	err = systemPromptTmpl.Execute(&systemPromptBuf, struct {
-		Branch       bool
-		Tests        bool
-		PR           bool
-		CommitAuthor string
+		Branch bool
+		Tests  bool
+		PR     bool
 	}{
-		Branch:       cc.branch,
-		Tests:        cc.tests,
-		PR:           cc.pr,
-		CommitAuthor: cc.commitAuthor,
+		Branch: cc.branch,
+		Tests:  cc.tests,
+		PR:     cc.pr,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to execute system prompt template: %w", err)

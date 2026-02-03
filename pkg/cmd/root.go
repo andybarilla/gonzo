@@ -34,11 +34,10 @@ var quiet bool
 var branch bool
 var tests bool
 var pr bool
-var commitAuthor string
 
 // newRunner creates a new gonzo.Runner. Replaceable for testing.
-var newRunner = func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
-	return gonzo.New().WithModel(model).WithQuiet(quiet).WithMaxIterations(maxIter).WithBranch(branch).WithTests(tests).WithPR(pr).WithCommitAuthor(commitAuthor)
+var newRunner = func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool) gonzo.Runner {
+	return gonzo.New().WithModel(model).WithQuiet(quiet).WithMaxIterations(maxIter).WithBranch(branch).WithTests(tests).WithPR(pr)
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -121,11 +120,6 @@ func init() {
 		&pr,
 		"pr", "p", config.DefaultPR,
 		"Create a pull request if one does not already exist for this branch")
-
-	rootCmd.PersistentFlags().StringVarP(
-		&commitAuthor,
-		"commit-author", "a", config.DefaultCommitAuthor,
-		"Override the default commit author (format: 'Name <email>')")
 }
 
 func runClaudePrompt(cmd *cobra.Command, args []string) {
@@ -175,7 +169,6 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 		viper.GetBool(config.KeyBranch),
 		viper.GetBool(config.KeyTests),
 		viper.GetBool(config.KeyPR),
-		viper.GetString(config.KeyCommitAuthor),
 	)
 
 	response, err := runner.Generate(cmd.Context(), feature)

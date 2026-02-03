@@ -27,7 +27,7 @@ Do NOT proceed with any code changes until you have confirmed the branch was cre
 {{ if .Tests }}- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
 {{ else }}- Run quality checks (e.g., typecheck, lint - use whatever your project requires, but skip tests)
 {{ end }}- Update CLAUDE.md files if you discover reusable patterns (see below)
-- If checks pass, commit ALL changes with a descriptive message using the configured commit author: {{ .CommitAuthor }}
+- If checks pass, commit ALL changes with a descriptive message
 {{ if .PR }}- Create a pull request if one does not already exist for this branch (see PR Creation section below)
 {{ end }}- Append your progress to `.gonzo/progress.txt`
 
@@ -96,10 +96,16 @@ Only update CLAUDE.md if you have **genuinely reusable knowledge** that would he
 
 ## Git Commit Author
 
-When committing changes, use the following author:
-- **Author**: {{ .CommitAuthor }}
+When committing changes, use the git configured author. First check that git is properly configured:
 
-To commit with this author, use: `git commit --author="{{ .CommitAuthor }}" -m "your message"`
+```bash
+git config user.name
+git config user.email
+```
+
+If both are configured, simply use `git commit -m "your message"` - git will use the configured author automatically.
+
+If either is not configured, inform the user that git author configuration is needed before commits can be made.
 
 {{ if .PR }}
 ## PR Creation

@@ -24,7 +24,6 @@ type mockRunner struct {
 	branch        bool
 	tests         bool
 	pr            bool
-	commitAuthor  string
 	response      string
 	err           error
 	// Captured values
@@ -39,15 +38,14 @@ func (m *mockRunner) Generate(ctx context.Context, prompt string) (string, error
 }
 
 // mockRunnerFactory creates a factory function that returns a mock runner and captures options.
-func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
-	return func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
+func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool) gonzo.Runner {
+	return func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool) gonzo.Runner {
 		mock.model = model
 		mock.quiet = quiet
 		mock.maxIterations = maxIter
 		mock.branch = branch
 		mock.tests = tests
 		mock.pr = pr
-		mock.commitAuthor = commitAuthor
 		return mock
 	}
 }
@@ -865,125 +863,6 @@ func TestRunClaudePrompt_PRFlagShort(t *testing.T) {
 
 	if !mock.pr {
 		t.Errorf("expected pr true, got %v", mock.pr)
-	}
-}
-
-func TestRunClaudePrompt_DefaultCommitAuthor(t *testing.T) {
-	// Save original and restore after test
-	originalNewRunner := newRunner
-	originalCommitAuthor := commitAuthor
-	defer func() {
-		newRunner = originalNewRunner
-		commitAuthor = originalCommitAuthor
-	}()
-
-	mock := &mockRunner{response: "mocked response"}
-	newRunner = mockRunnerFactory(mock)
-
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Reset to default
-	commitAuthor = "Gonzo <gonzo@barilla.you>"
-	_, _, err := executeCommandC(rootCmd, "test prompt")
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	expectedCommitAuthor := "Gonzo <gonzo@barilla.you>"
-	if mock.commitAuthor != expectedCommitAuthor {
-		t.Errorf("expected default commitAuthor %q, got %q", expectedCommitAuthor, mock.commitAuthor)
-	}
-}
-
-func TestRunClaudePrompt_CommitAuthorFlag(t *testing.T) {
-	testCases := []struct {
-		name                 string
-		flagValue            string
-		expectedCommitAuthor string
-	}{
-		{"custom author", "Custom Author <custom@example.com>", "Custom Author <custom@example.com>"},
-		{"another author", "Another Person <another@test.org>", "Another Person <another@test.org>"},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			// Save original and restore after test
-			originalNewRunner := newRunner
-			originalCommitAuthor := commitAuthor
-			defer func() {
-				newRunner = originalNewRunner
-				commitAuthor = originalCommitAuthor
-			}()
-
-			mock := &mockRunner{response: "mocked response"}
-			newRunner = mockRunnerFactory(mock)
-
-			// Capture stdout
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-
-			_, _, err := executeCommandC(rootCmd, "--commit-author="+tt.flagValue, "test prompt")
-
-			_ = w.Close()
-			os.Stdout = oldStdout
-
-			var buf bytes.Buffer
-			_, _ = io.Copy(&buf, r)
-
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if mock.commitAuthor != tt.expectedCommitAuthor {
-				t.Errorf("expected commitAuthor %q, got %q", tt.expectedCommitAuthor, mock.commitAuthor)
-			}
-		})
-	}
-}
-
-func TestRunClaudePrompt_CommitAuthorFlagShort(t *testing.T) {
-	// Save original and restore after test
-	originalNewRunner := newRunner
-	originalCommitAuthor := commitAuthor
-	defer func() {
-		newRunner = originalNewRunner
-		commitAuthor = originalCommitAuthor
-	}()
-
-	mock := &mockRunner{response: "mocked response"}
-	newRunner = mockRunnerFactory(mock)
-
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	_, _, err := executeCommandC(rootCmd, "-a", "Short Flag Author <short@example.com>", "test prompt")
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	expectedCommitAuthor := "Short Flag Author <short@example.com>"
-	if mock.commitAuthor != expectedCommitAuthor {
-		t.Errorf("expected commitAuthor %q, got %q", expectedCommitAuthor, mock.commitAuthor)
 	}
 }
 

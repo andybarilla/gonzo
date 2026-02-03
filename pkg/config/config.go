@@ -35,7 +35,6 @@ const (
 	KeyBranch        = "branch"
 	KeyTests         = "tests"
 	KeyPR            = "pr"
-	KeyCommitAuthor  = "commit-author"
 )
 
 // Default values
@@ -46,7 +45,6 @@ const (
 	DefaultBranch        = true
 	DefaultTests         = true
 	DefaultPR            = true
-	DefaultCommitAuthor  = "Gonzo <gonzo@barilla.you>"
 )
 
 // Init initializes Viper with defaults, config file, and environment variables.
@@ -60,7 +58,6 @@ func Init() error {
 	viper.SetDefault(KeyBranch, DefaultBranch)
 	viper.SetDefault(KeyTests, DefaultTests)
 	viper.SetDefault(KeyPR, DefaultPR)
-	viper.SetDefault(KeyCommitAuthor, DefaultCommitAuthor)
 
 	// Set config file name and type
 	viper.SetConfigName(ConfigName)
@@ -97,7 +94,7 @@ func Init() error {
 // This should be called in the cobra command's PersistentPreRunE or PreRunE
 // after flags have been defined but before they are used.
 func BindFlags(cmd *cobra.Command) error {
-	flags := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyBranch, KeyTests, KeyPR, KeyCommitAuthor}
+	flags := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyBranch, KeyTests, KeyPR}
 
 	for _, flag := range flags {
 		if err := viper.BindPFlag(flag, cmd.PersistentFlags().Lookup(flag)); err != nil {
@@ -136,11 +133,6 @@ func GetTests() bool {
 // GetPR returns whether PR creation is enabled
 func GetPR() bool {
 	return viper.GetBool(KeyPR)
-}
-
-// GetCommitAuthor returns the configured commit author
-func GetCommitAuthor() string {
-	return viper.GetString(KeyCommitAuthor)
 }
 
 // ConfigFileUsed returns the config file path if one was found and loaded
