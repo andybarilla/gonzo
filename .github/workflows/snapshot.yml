@@ -1,0 +1,77 @@
+name: Snapshot
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binaries
+        run: |
+          VERSION="nightly-${GITHUB_SHA::7}"
+
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X main.version=$VERSION" -o dist/gonzo-linux-amd64 ./cmd/gonzo-cli
+
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X main.version=$VERSION" -o dist/gonzo-linux-arm64 ./cmd/gonzo-cli
+
+          # macOS amd64
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.version=$VERSION" -o dist/gonzo-darwin-amd64 ./cmd/gonzo-cli
+
+          # macOS arm64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.version=$VERSION" -o dist/gonzo-darwin-arm64 ./cmd/gonzo-cli
+
+          # Windows amd64
+          GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=$VERSION" -o dist/gonzo-windows-amd64.exe ./cmd/gonzo-cli
+
+      - name: Create checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+
+      - name: Delete existing nightly release
+        run: gh release delete nightly --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          body: |
+            Automated snapshot build from the latest `main` branch.
+
+            **Commit:** ${{ github.sha }}
+            **Built:** ${{ github.event.head_commit.timestamp }}
+
+            > [!WARNING]
+            > This is a development build and may be unstable.
+          prerelease: true
+          files: |
+            dist/gonzo-linux-amd64
+            dist/gonzo-linux-arm64
+            dist/gonzo-darwin-amd64
+            dist/gonzo-darwin-arm64
+            dist/gonzo-windows-amd64.exe
+            dist/checksums.txt
