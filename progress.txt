@@ -163,3 +163,28 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 - Always `viper.Reset()` between tests to avoid state pollution
 
 ---
+
+## 2026-02-03 - Add configurable commit-author parameter
+
+### What was implemented
+- Added a new `--commit-author` (`-a`) CLI flag that allows overriding the default commit author used when making commits
+- Default commit author is set to `Gonzo <gonzo@barilla.you>`
+- The commit author is passed to the system prompt template so the agent knows to use `git commit --author="..."` when committing
+- Supports all Viper configuration sources: CLI flag, environment variable (`GONZO_COMMIT_AUTHOR`), and config file
+
+### Files changed
+- `pkg/config/config.go` - Added `KeyCommitAuthor` and `DefaultCommitAuthor` constants, viper default, and `GetCommitAuthor()` getter
+- `pkg/config/config_test.go` - Added tests for commit author across all test scenarios
+- `pkg/cmd/root.go` - Added `--commit-author` flag with `-a` shorthand and updated runner factory signature
+- `pkg/cmd/root_test.go` - Added mock runner field and tests for commit author flag
+- `pkg/gonzo/claude.go` - Added `commitAuthor` field, `WithCommitAuthor()` builder method, and template data
+- `pkg/gonzo/claude_test.go` - Added tests for `WithCommitAuthor()` method and default value
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Added "Git Commit Author" section with commit instructions
+
+### Learnings for future iterations
+- When adding new flags, remember to update: config.go (key, default, viper.SetDefault, BindFlags list, getter), root.go (variable, newRunner signature, flag definition, runner call), and all test files
+- The mockRunner struct and mockRunnerFactory in root_test.go need to match the newRunner signature exactly
+- Template data struct must be updated when adding new fields that need to be passed to the system prompt
+- Use `gofmt -w` to fix any formatting issues after edits
+
+---
