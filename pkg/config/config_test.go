@@ -33,6 +33,7 @@ func TestInit_DefaultValues(t *testing.T) {
 		{KeyBranch, DefaultBranch, func() interface{} { return GetBranch() }},
 		{KeyTests, DefaultTests, func() interface{} { return GetTests() }},
 		{KeyPR, DefaultPR, func() interface{} { return GetPR() }},
+		{KeyCommitAuthor, DefaultCommitAuthor, func() interface{} { return GetCommitAuthor() }},
 	}
 
 	for _, tt := range tests {
@@ -56,6 +57,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		"GONZO_BRANCH":         "false",
 		"GONZO_TESTS":          "false",
 		"GONZO_PR":             "true",
+		"GONZO_COMMIT_AUTHOR":  "Test Author <test@example.com>",
 	}
 
 	for k, v := range envVars {
@@ -83,6 +85,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		{"branch", false, func() interface{} { return GetBranch() }},
 		{"tests", false, func() interface{} { return GetTests() }},
 		{"pr", true, func() interface{} { return GetPR() }},
+		{"commit-author", "Test Author <test@example.com>", func() interface{} { return GetCommitAuthor() }},
 	}
 
 	for _, tt := range tests {
@@ -108,6 +111,7 @@ quiet: true
 branch: false
 tests: false
 pr: true
+commit-author: Config Author <config@example.com>
 `
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -134,6 +138,7 @@ pr: true
 		{"branch", false, func() interface{} { return GetBranch() }},
 		{"tests", false, func() interface{} { return GetTests() }},
 		{"pr", true, func() interface{} { return GetPR() }},
+		{"commit-author", "Config Author <config@example.com>", func() interface{} { return GetCommitAuthor() }},
 	}
 
 	for _, tt := range tests {
@@ -203,6 +208,7 @@ func TestBindFlags(t *testing.T) {
 	cmd.PersistentFlags().Bool(KeyBranch, DefaultBranch, "branch")
 	cmd.PersistentFlags().Bool(KeyTests, DefaultTests, "tests")
 	cmd.PersistentFlags().Bool(KeyPR, DefaultPR, "pr")
+	cmd.PersistentFlags().String(KeyCommitAuthor, DefaultCommitAuthor, "commit author")
 
 	// Set a flag value
 	cmd.PersistentFlags().Set(KeyModel, "claude-haiku-4-5")
@@ -238,7 +244,7 @@ func TestAllSettings(t *testing.T) {
 	settings := AllSettings()
 
 	// Check that all keys are present
-	expectedKeys := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyBranch, KeyTests, KeyPR}
+	expectedKeys := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyBranch, KeyTests, KeyPR, KeyCommitAuthor}
 	for _, key := range expectedKeys {
 		if _, ok := settings[key]; !ok {
 			t.Errorf("expected key %q in AllSettings()", key)

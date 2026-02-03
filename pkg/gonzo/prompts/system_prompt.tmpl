@@ -27,7 +27,7 @@ Do NOT proceed with any code changes until you have confirmed the branch was cre
 {{ if .Tests }}- Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
 {{ else }}- Run quality checks (e.g., typecheck, lint - use whatever your project requires, but skip tests)
 {{ end }}- Update CLAUDE.md files if you discover reusable patterns (see below)
-- If checks pass, commit ALL changes with a descriptive message
+- If checks pass, commit ALL changes with a descriptive message using the configured commit author: {{ .CommitAuthor }}
 {{ if .PR }}- Create a pull request if one does not already exist for this branch (see PR Creation section below)
 {{ end }}- Append your progress to `progress.txt`
 
@@ -93,6 +93,13 @@ Only update CLAUDE.md if you have **genuinely reusable knowledge** that would he
 {{ end }}- Do NOT commit broken code
 - Keep changes focused and minimal
 - Follow existing code patterns
+
+## Git Commit Author
+
+When committing changes, use the following author:
+- **Author**: {{ .CommitAuthor }}
+
+To commit with this author, use: `git commit --author="{{ .CommitAuthor }}" -m "your message"`
 
 {{ if .PR }}
 ## PR Creation
