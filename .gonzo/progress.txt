@@ -1,0 +1,235 @@
+# Ralph Progress Log
+Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
+---
+
+## Codebase Patterns
+- Install script follows chezmoi/Claude Code patterns: POSIX shell, curl/wget support, SHA256 verification
+- Binary naming convention: `{name}-{os}-{arch}` (e.g., `gonzo-linux-amd64`)
+- Checksums file expected at: `releases/download/{tag}/checksums.txt`
+- Color output respects NO_COLOR environment variable
+- CLI flags use builder pattern: `New().WithModel().WithQuiet().WithTests().WithPR()` etc.
+- Template files in prompts/ use Go text/template with conditional blocks for flags
+- Literal `{{...}}` in templates must be escaped as `{{"{{...}}"}}`
+- When adding new flags: update root.go (var + flag), mockRunner, mockRunnerFactory, newRunner, and tests
+- Viper is used for configuration: supports config files, env vars (GONZO_ prefix), and CLI flags
+- Config files are searched in: `./`, `~/`, `~/.config/gonzo/` (named `gonzo.yaml`)
+- Config package in pkg/config provides Init(), BindFlags(), and typed getters
+- Gonzo stores runtime files in `.gonzo/` directory (e.g., progress.txt)
+- Use `GOSUMDB=sum.golang.org GOTOOLCHAIN=auto` when running go commands locally
+
+---
+
+## 2026-02-01 - Added downloadable install script
+
+### What was implemented
+- Created `install.sh` - a POSIX-compliant shell script for one-line installation
+- Features include:
+  - Automatic OS/architecture detection (darwin, linux, windows + amd64, arm64)
+  - Multiple download methods (curl preferred, wget fallback)
+  - SHA256 checksum verification using checksums.txt from releases
+  - Custom installation directory via `-b` flag
+  - Version pinning via `-t` flag (defaults to "latest")
+  - Debug mode via `-d` flag
+  - Proper cleanup of temporary files
+  - PATH hint when installing to non-PATH directory
+
+### Files changed
+- `install.sh` (new) - Main installation script
+- `README.md` (modified) - Added installation documentation
+
+### Learnings for future iterations
+- The release workflow creates binaries named `gonzo-{os}-{arch}` (not compressed)
+- Checksums are in `checksums.txt` using standard sha256sum format
+- Script uses POSIX sh for maximum compatibility (not bash)
+- Chezmoi's install script is a great reference for POSIX-compliant installers
+---
+
+## 2026-02-01 - Enhanced install script with colors and improved UX
+
+### What was implemented
+- Enhanced `install.sh` with features inspired by Claude Code and Chezmoi:
+  - **Colored output** with automatic terminal detection (respects NO_COLOR env var)
+  - **Better default install location**: prefers `~/.local/bin` (like Claude Code)
+  - **Force flag (-f)**: allows overwriting existing installations
+  - **Quiet flag (-q)**: minimal output for CI/automation
+  - **Installation verification**: tests that the installed binary runs
+  - **Improved help text**: better formatting with USAGE/OPTIONS/EXAMPLES sections
+  - **Uninstall instructions**: added to help output
+
+### Files changed
+- `install.sh` (modified) - Enhanced with colors, new flags, improved UX
+
+### Learnings for future iterations
+- POSIX sh color codes: use `\033[0;31m` etc. with printf (not echo)
+- Detect color support: check `[ -t 2 ]` for terminal and respect NO_COLOR
+- Default to `~/.local/bin` as it's the XDG standard for user binaries
+- Verify installation by running `binary --version` after install
+---
+
+## 2026-02-01 - Enhanced install script with colors and extended platform support
+
+### What was implemented
+- Enhanced the existing `install.sh` with additional features inspired by chezmoi and Claude Code install scripts:
+  - Added colored output (green for info, blue for debug, yellow for errors, red for critical)
+  - Added `-V` flag to display script version
+  - Added FreeBSD support (amd64, arm64)
+  - Added Windows arm64 support
+  - Added checksum format validation (validates 64 hex character SHA256 format)
+  - Documented environment variables (BINDIR, NO_COLOR) in help text
+
+### Files changed
+- `install.sh` - Enhanced with colors, version flag, extended platform support, and security improvements
+
+### Learnings for future iterations
+- The install script already existed and was well-structured following chezmoi patterns
+- Color support should check both `-t 1` (is terminal) AND `NO_COLOR` env var
+- Checksum validation regex: `^[a-f0-9]{64}$` for SHA256
+- Always use `printf` with format string for colored output, not `echo`
+- Script syntax can be validated with `sh -n <script>`
+
+---
+
+## 2026-02-02 - Add --tests CLI flag for enabling/disabling test running
+
+### What was implemented
+- Added a new `--tests` (`-t`) CLI flag that defaults to `true`
+- When `false`, the system prompt tells the agent to skip tests during quality checks
+- The flag follows the existing pattern for boolean flags (like `--branch`)
+- Updated the system prompt template to conditionally include test instructions
+
+### Files changed
+- `pkg/cmd/root.go` - Added `tests` variable and `--tests` flag definition
+- `pkg/cmd/root_test.go` - Added tests for the new flag (default, explicit values, short form)
+- `pkg/gonzo/claude.go` - Added `tests` field to ClaudeConfig, `WithTests()` method, and template execution
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Added conditional blocks for tests in quality checks section
+
+### Learnings for future iterations
+- The system_prompt.tmpl was not being executed as a template before this change - fixed to use `template.ParseFS` and `Execute`
+- Literal `{{...}}` in Go templates must be escaped as `{{"{{...}}"}}` otherwise they're interpreted as template functions
+- Follow the existing builder pattern (`WithXxx()` methods) when adding new config options
+- Test files follow the pattern of saving/restoring global variables in defer blocks
+
+---
+
+## 2026-02-02 - Add --pr flag for automatic pull request creation
+
+### What was implemented
+- Added a new `--pr` (`-p`) CLI flag that defaults to `false`
+- When `true`, the system prompt instructs the agent to create a PR if one does not exist for the current branch
+- The flag follows the existing builder pattern for boolean flags
+- Updated the system prompt template with conditional PR creation instructions
+- Fixed a merge conflict in system_prompt.tmpl that was present in the codebase
+
+### Files changed
+- `pkg/cmd/root.go` - Added `pr` variable and `--pr` flag definition
+- `pkg/cmd/root_test.go` - Added tests for the new flag (default, explicit values, short form)
+- `pkg/gonzo/claude.go` - Added `pr` field to ClaudeConfig, `WithPR()` method, and template data
+- `pkg/gonzo/claude_test.go` - Added tests for `WithPR()` method and default value
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Added conditional PR Creation section with `gh` CLI instructions
+
+### Learnings for future iterations
+- The `gh` CLI is expected to be installed and authenticated for PR creation
+- Use `gh pr view 2>/dev/null || gh pr create` pattern to check for existing PR before creating
+- When adding new boolean flags, update: root.go (variable + flag), mockRunner struct, mockRunnerFactory signature, newRunner factory, and corresponding tests
+- Template conditionals use `{{ if .PR }}...{{ end }}` pattern consistently with other flags
+
+---
+
+## 2026-02-02 - Implement Viper configuration management alongside Cobra
+
+### What was implemented
+- Added spf13/viper for comprehensive configuration management
+- Created new `pkg/config` package with:
+  - `Init()` - Initializes Viper with defaults, config file search paths, and env var support
+  - `BindFlags()` - Binds Cobra flags to Viper for unified configuration
+  - Typed getters: `GetModel()`, `GetMaxIterations()`, `GetQuiet()`, etc.
+- Configuration sources (in order of priority):
+  1. Command-line flags (highest priority)
+  2. Environment variables (GONZO_ prefix, e.g., `GONZO_MODEL`, `GONZO_MAX_ITERATIONS`)
+  3. Config file (`gonzo.yaml` in `./`, `~/`, or `~/.config/gonzo/`)
+  4. Default values (lowest priority)
+- Updated root.go with `PersistentPreRunE` hook to initialize config before command execution
+- Updated command help text to document configuration options
+
+### Files changed
+- `go.mod`, `go.sum` - Added spf13/viper dependency and transitive dependencies
+- `pkg/config/config.go` (new) - Viper configuration package with Init, BindFlags, and getters
+- `pkg/config/config_test.go` (new) - Comprehensive tests for config package
+- `pkg/cmd/root.go` - Integrated Viper, added initConfig hook, updated runClaudePrompt to use Viper values
+
+### Learnings for future iterations
+- Viper's `AutomaticEnv()` combined with `SetEnvPrefix()` and `SetEnvKeyReplacer()` handles env var mapping
+- Use `cmd.Flags().Changed(flagName)` to check if a flag was explicitly set by the user
+- For enum flags (like model), need special handling since enumflag doesn't integrate directly with Viper
+- Config file not found is a normal case (users might not have one) - use type assertion to check for `viper.ConfigFileNotFoundError`
+- Always `viper.Reset()` between tests to avoid state pollution
+
+---
+
+## 2026-02-03 - Add configurable commit-author parameter
+
+### What was implemented
+- Added a new `--commit-author` (`-a`) CLI flag that allows overriding the default commit author used when making commits
+- Default commit author is set to `Gonzo <gonzo@barilla.you>`
+- The commit author is passed to the system prompt template so the agent knows to use `git commit --author="..."` when committing
+- Supports all Viper configuration sources: CLI flag, environment variable (`GONZO_COMMIT_AUTHOR`), and config file
+
+### Files changed
+- `pkg/config/config.go` - Added `KeyCommitAuthor` and `DefaultCommitAuthor` constants, viper default, and `GetCommitAuthor()` getter
+- `pkg/config/config_test.go` - Added tests for commit author across all test scenarios
+- `pkg/cmd/root.go` - Added `--commit-author` flag with `-a` shorthand and updated runner factory signature
+- `pkg/cmd/root_test.go` - Added mock runner field and tests for commit author flag
+- `pkg/gonzo/claude.go` - Added `commitAuthor` field, `WithCommitAuthor()` builder method, and template data
+- `pkg/gonzo/claude_test.go` - Added tests for `WithCommitAuthor()` method and default value
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Added "Git Commit Author" section with commit instructions
+
+### Learnings for future iterations
+- When adding new flags, remember to update: config.go (key, default, viper.SetDefault, BindFlags list, getter), root.go (variable, newRunner signature, flag definition, runner call), and all test files
+- The mockRunner struct and mockRunnerFactory in root_test.go need to match the newRunner signature exactly
+- Template data struct must be updated when adding new fields that need to be passed to the system prompt
+- Use `gofmt -w` to fix any formatting issues after edits
+
+---
+
+## 2026-02-03 - Add nightly release flag to install script
+
+### What was implemented
+- Added `-n` flag to `install.sh` to download nightly release builds
+- Updated the OPTIONS section in help output to include all available flags (`-f`, `-n`, `-q`, `-t`)
+- Added example usage for nightly installation in the EXAMPLES section
+- Modified `real_tag()` function to handle "nightly" tag specially
+
+### Files changed
+- `install.sh` - Added `-n` flag parsing, nightly tag handling, and updated help documentation
+
+### Learnings for future iterations
+- Nightly releases use a fixed "nightly" tag that gets updated by the nightly workflow
+- The `-n` flag is a shortcut for `-t nightly` but is more discoverable
+- Always validate shell script syntax with `sh -n <script>` before committing
+- The OPTIONS section in help should list all available flags for discoverability
+
+---
+
+## 2026-02-03 - Store progress.txt in .gonzo directory
+
+### What was implemented
+- Changed progress file location from `./progress.txt` to `./.gonzo/progress.txt`
+- Modified `ensureProgressFileExists()` in `claude.go` to:
+  - Create `.gonzo/` directory with `os.MkdirAll()` if it doesn't exist
+  - Store `progress.txt` inside the `.gonzo/` directory
+- Updated all references to `progress.txt` in system_prompt.tmpl to use `.gonzo/progress.txt`
+- Added `.gonzo/` to `.gitignore` since it's a generated directory
+
+### Files changed
+- `pkg/gonzo/claude.go` - Updated path logic in `ensureProgressFileExists()`
+- `pkg/gonzo/claude_test.go` - Updated tests to check for `.gonzo/progress.txt` and verify directory creation
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Updated all references from `progress.txt` to `.gonzo/progress.txt`
+- `.gitignore` - Added `.gonzo/` entry
+
+### Learnings for future iterations
+- Use `os.MkdirAll()` to create nested directories safely (handles existing directories)
+- The `.gonzo/` directory is used to organize Gonzo-generated files
+- Remember to add generated directories to `.gitignore`
+- When changing file paths, update both the code and any documentation/templates that reference those paths
+
+---
