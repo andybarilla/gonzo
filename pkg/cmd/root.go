@@ -93,27 +93,27 @@ func init() {
 		&maxIterations,
 		"max-iterations",
 		"i",
-		10,
+		config.DefaultMaxIterations,
 		"Maximum number of iterations")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&quiet,
-		"quiet", "q", false,
+		"quiet", "q", config.DefaultQuiet,
 		"Disable output messages")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&branch,
-		"branch", "b", true,
+		"branch", "b", config.DefaultBranch,
 		"Create a new git branch for the changes")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&tests,
-		"tests", "t", true,
-		"Run tests as part of the quality checks")
+		"tests", "t", config.DefaultTests,
+		"Implement tests as part of the quality checks")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&pr,
-		"pr", "p", false,
+		"pr", "p", config.DefaultPR,
 		"Create a pull request if one does not already exist for this branch")
 }
 

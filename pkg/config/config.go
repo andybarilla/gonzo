@@ -44,7 +44,7 @@ const (
 	DefaultQuiet         = false
 	DefaultBranch        = true
 	DefaultTests         = true
-	DefaultPR            = false
+	DefaultPR            = true
 )
 
 // Init initializes Viper with defaults, config file, and environment variables.

@@ -779,7 +779,7 @@ func TestRunClaudePrompt_DefaultPR(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if mock.pr {
+	if !mock.pr {
 		t.Errorf("expected default pr false, got %v", mock.pr)
 	}
 }
