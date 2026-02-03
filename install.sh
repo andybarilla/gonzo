@@ -51,13 +51,15 @@ trap cleanup EXIT
 trap 'exit' INT TERM
 
 # Color support (disabled if not a terminal or NO_COLOR is set)
+# Use printf to generate actual escape characters (POSIX-compatible)
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[0;33m'
-    BLUE='\033[0;34m'
-    BOLD='\033[1m'
-    NC='\033[0m' # No Color
+    ESC=$(printf '\033')
+    RED="${ESC}[0;31m"
+    GREEN="${ESC}[0;32m"
+    YELLOW="${ESC}[0;33m"
+    BLUE="${ESC}[0;34m"
+    BOLD="${ESC}[1m"
+    NC="${ESC}[0m" # No Color
 else
     RED=''
     GREEN=''
