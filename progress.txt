@@ -188,3 +188,22 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 - Use `gofmt -w` to fix any formatting issues after edits
 
 ---
+
+## 2026-02-03 - Add nightly release flag to install script
+
+### What was implemented
+- Added `-n` flag to `install.sh` to download nightly release builds
+- Updated the OPTIONS section in help output to include all available flags (`-f`, `-n`, `-q`, `-t`)
+- Added example usage for nightly installation in the EXAMPLES section
+- Modified `real_tag()` function to handle "nightly" tag specially
+
+### Files changed
+- `install.sh` - Added `-n` flag parsing, nightly tag handling, and updated help documentation
+
+### Learnings for future iterations
+- Nightly releases use a fixed "nightly" tag that gets updated by the nightly workflow
+- The `-n` flag is a shortcut for `-t nightly` but is more discoverable
+- Always validate shell script syntax with `sh -n <script>` before committing
+- The OPTIONS section in help should list all available flags for discoverability
+
+---

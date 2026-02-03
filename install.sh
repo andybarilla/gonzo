@@ -12,6 +12,7 @@
 #   -b bindir   Installation directory (default: ~/.local/bin or ./bin)
 #   -d          Enable debug logging
 #   -f          Force install (skip confirmation prompts)
+#   -n          Install nightly release
 #   -q          Quiet mode (minimal output)
 #   -t tag      Install specific version tag (default: latest)
 #   -h          Show help
@@ -79,6 +80,10 @@ ${BOLD}USAGE${NC}
 ${BOLD}OPTIONS${NC}
     -b <dir>    Installation directory (default: ~/.local/bin or ./bin)
     -d          Enable debug logging
+    -f          Force install (overwrite existing installation)
+    -n          Install nightly release (prerelease builds)
+    -q          Quiet mode (minimal output)
+    -t <tag>    Install specific version tag (default: latest)
     -h          Show this help message
 
 ${BOLD}EXAMPLES${NC}
@@ -90,6 +95,9 @@ ${BOLD}EXAMPLES${NC}
 
     # Install specific version
     curl -fsSL ... | sh -s -- -t v1.0.0
+
+    # Install nightly release
+    curl -fsSL ... | sh -s -- -n
 
     # Install with debug output
     curl -fsSL ... | sh -s -- -d
@@ -221,12 +229,13 @@ main() {
 }
 
 parse_args() {
-    while getopts "b:dfhqt:" arg; do
+    while getopts "b:dfhnqt:" arg; do
         case "${arg}" in
         b) BINDIR="${OPTARG}" ;;
         d) LOG_LEVEL=3 ;;
         f) FORCE=1 ;;
         h) usage "${0}" ;;
+        n) TAGARG="nightly" ;;
         q) LOG_LEVEL=1 ;;
         t) TAGARG="${OPTARG}" ;;
         *)
@@ -294,8 +303,12 @@ real_tag() {
         fi
         log_debug "found latest tag: ${real_tag}"
         printf '%s' "${real_tag}"
+    elif [ "${tag}" = "nightly" ]; then
+        # Nightly releases use a fixed "nightly" tag that gets updated
+        log_debug "using nightly release tag"
+        printf '%s' "nightly"
     else
-        # Use the tag as-is if it's not "latest"
+        # Use the tag as-is if it's not "latest" or "nightly"
         printf '%s' "${tag}"
     fi
 }
