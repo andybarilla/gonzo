@@ -16,6 +16,7 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 - Config package in pkg/config provides Init(), BindFlags(), and typed getters
 - Gonzo stores runtime files in `.gonzo/` directory (e.g., progress.txt)
 - Use `GOSUMDB=sum.golang.org GOTOOLCHAIN=auto` when running go commands locally
+- Git commits use the git configured author (git config user.name/user.email) - no hardcoded author
 
 ---
 
@@ -255,5 +256,32 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 
 ### PR Created
 - https://github.com/cykogrilla/gonzo/pull/29
+
+---
+
+## 2026-02-03 - Use git configured author instead of hardcoded commit-author
+
+### What was implemented
+- Removed the `--commit-author`/`-a` CLI flag and all related configuration
+- Updated the system prompt to instruct the agent to use `git config user.name` and `git config user.email`
+- The agent now checks if git is properly configured before committing and uses the standard `git commit` command
+
+### Files changed
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Updated "Git Commit Author" section to use git config instead of template variable
+- `pkg/cmd/root.go` - Removed `commitAuthor` variable, flag definition, and runner parameter
+- `pkg/cmd/root_test.go` - Removed mockRunner.commitAuthor field and related tests
+- `pkg/config/config.go` - Removed `KeyCommitAuthor`, `DefaultCommitAuthor`, viper default, and getter
+- `pkg/config/config_test.go` - Removed commit-author from all test scenarios
+- `pkg/gonzo/claude.go` - Removed `commitAuthor` field, `WithCommitAuthor()` method, and template data
+- `pkg/gonzo/claude_test.go` - Removed `TestWithCommitAuthor` and `TestDefaultCommitAuthor` tests
+- `gonzo.sample.yaml` - Updated to note that git config is used instead of commit-author setting
+
+### Learnings for future iterations
+- When removing a flag, remember to update: config.go (key, default, viper default, getter), root.go (variable, flag, runner call), claude.go (field, builder method, template data), and all test files
+- Using git's configured author is simpler and more flexible than passing a hardcoded value
+- The system prompt can instruct the agent to check prerequisites before performing actions
+
+### PR Created
+- https://github.com/cykogrilla/gonzo/pull/31
 
 ---
