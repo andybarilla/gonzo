@@ -1,0 +1,34 @@
+# Gonzo Progress Log
+Started: 2026-02-03 14:22:35.786122137 -0700 MST m=+0.001265919
+---
+
+## Codebase Patterns
+- Feature input can come from: CLI args, stdin pipe, or file path (if single arg that exists as a file)
+- Tests follow the pattern: save originals, defer restore, mock runner, capture stdout with pipe
+- Use GOTOOLCHAIN=auto GOSUMDB=sum.golang.org for building (go 1.25 required)
+- Commit with --author="Gonzo <gonzo@barilla.you>"
+
+---
+
+## 2026-02-03 - Feature: Support reading feature details from a file
+
+### What was implemented
+- Enhanced `runClaudePrompt` in `pkg/cmd/root.go` to detect when a single argument is a file path
+- Added `readFeatureFromFile` helper function that reads file contents when the path exists and is a regular file
+- Updated CLI help documentation to describe the three ways to specify a feature (args, file, stdin)
+- Added comprehensive tests for the file input feature
+
+### Files changed
+- `pkg/cmd/root.go` - Added file input detection logic and `readFeatureFromFile` function
+- `pkg/cmd/root_test.go` - Added 7 new test cases covering file input scenarios
+
+### Learnings for future iterations:
+- The codebase uses a `newRunner` variable that can be replaced in tests for mocking
+- Tests capture stdout using `os.Pipe()` and restore it after the test
+- File reading should handle directories gracefully (not try to read them)
+- Use `strings.TrimSpace` when reading file content to handle whitespace
+
+### PR Created
+- https://github.com/cykogrilla/gonzo/pull/27
+
+---

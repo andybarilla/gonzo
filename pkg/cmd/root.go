@@ -49,6 +49,11 @@ var rootCmd = &cobra.Command{
 It uses iterative prompting to refine responses from the model by running
 multiple iterations.
 
+The feature can be specified as:
+  - A direct feature description: gonzo "add a login button"
+  - A path to a file containing the feature: gonzo feature.txt
+  - Via stdin: echo "add a login button" | gonzo
+
 Configuration can be provided via:
   - Command-line flags (highest priority)
   - Environment variables (GONZO_ prefix, e.g., GONZO_MODEL, GONZO_MAX_ITERATIONS)
@@ -132,6 +137,12 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 
 	if len(args) > 0 {
 		feature = strings.Join(args, " ")
+		// Check if feature is a single argument that looks like a file path
+		if len(args) == 1 {
+			if content, err := readFeatureFromFile(args[0]); err == nil {
+				feature = content
+			}
+		}
 	} else if stdinIsPipe {
 		scanner := bufio.NewScanner(os.Stdin)
 		var lines []string
@@ -173,4 +184,26 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(response)
+}
+
+// readFeatureFromFile attempts to read feature content from a file.
+// If the path exists and is a regular file, it returns the file contents.
+// Otherwise, it returns an error indicating the argument should be treated as a feature string.
+func readFeatureFromFile(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+
+	// Only read regular files (not directories, etc.)
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("not a regular file: %s", path)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(content)), nil
 }
