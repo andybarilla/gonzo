@@ -14,6 +14,8 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 - Viper is used for configuration: supports config files, env vars (GONZO_ prefix), and CLI flags
 - Config files are searched in: `./`, `~/`, `~/.config/gonzo/` (named `gonzo.yaml`)
 - Config package in pkg/config provides Init(), BindFlags(), and typed getters
+- Gonzo stores runtime files in `.gonzo/` directory (e.g., progress.txt)
+- Use `GOSUMDB=sum.golang.org GOTOOLCHAIN=auto` when running go commands locally
 
 ---
 
@@ -205,5 +207,29 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 - The `-n` flag is a shortcut for `-t nightly` but is more discoverable
 - Always validate shell script syntax with `sh -n <script>` before committing
 - The OPTIONS section in help should list all available flags for discoverability
+
+---
+
+## 2026-02-03 - Store progress.txt in .gonzo directory
+
+### What was implemented
+- Changed progress file location from `./progress.txt` to `./.gonzo/progress.txt`
+- Modified `ensureProgressFileExists()` in `claude.go` to:
+  - Create `.gonzo/` directory with `os.MkdirAll()` if it doesn't exist
+  - Store `progress.txt` inside the `.gonzo/` directory
+- Updated all references to `progress.txt` in system_prompt.tmpl to use `.gonzo/progress.txt`
+- Added `.gonzo/` to `.gitignore` since it's a generated directory
+
+### Files changed
+- `pkg/gonzo/claude.go` - Updated path logic in `ensureProgressFileExists()`
+- `pkg/gonzo/claude_test.go` - Updated tests to check for `.gonzo/progress.txt` and verify directory creation
+- `pkg/gonzo/prompts/system_prompt.tmpl` - Updated all references from `progress.txt` to `.gonzo/progress.txt`
+- `.gitignore` - Added `.gonzo/` entry
+
+### Learnings for future iterations
+- Use `os.MkdirAll()` to create nested directories safely (handles existing directories)
+- The `.gonzo/` directory is used to organize Gonzo-generated files
+- Remember to add generated directories to `.gitignore`
+- When changing file paths, update both the code and any documentation/templates that reference those paths
 
 ---
