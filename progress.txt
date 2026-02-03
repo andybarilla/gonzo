@@ -11,6 +11,9 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 - Template files in prompts/ use Go text/template with conditional blocks for flags
 - Literal `{{...}}` in templates must be escaped as `{{"{{...}}"}}`
 - When adding new flags: update root.go (var + flag), mockRunner, mockRunnerFactory, newRunner, and tests
+- Viper is used for configuration: supports config files, env vars (GONZO_ prefix), and CLI flags
+- Config files are searched in: `./`, `~/`, `~/.config/gonzo/` (named `gonzo.yaml`)
+- Config package in pkg/config provides Init(), BindFlags(), and typed getters
 
 ---
 
@@ -127,5 +130,36 @@ Started: 2026-02-01 20:26:13.228328175 -0700 MST m=+0.000745718
 - Use `gh pr view 2>/dev/null || gh pr create` pattern to check for existing PR before creating
 - When adding new boolean flags, update: root.go (variable + flag), mockRunner struct, mockRunnerFactory signature, newRunner factory, and corresponding tests
 - Template conditionals use `{{ if .PR }}...{{ end }}` pattern consistently with other flags
+
+---
+
+## 2026-02-02 - Implement Viper configuration management alongside Cobra
+
+### What was implemented
+- Added spf13/viper for comprehensive configuration management
+- Created new `pkg/config` package with:
+  - `Init()` - Initializes Viper with defaults, config file search paths, and env var support
+  - `BindFlags()` - Binds Cobra flags to Viper for unified configuration
+  - Typed getters: `GetModel()`, `GetMaxIterations()`, `GetQuiet()`, etc.
+- Configuration sources (in order of priority):
+  1. Command-line flags (highest priority)
+  2. Environment variables (GONZO_ prefix, e.g., `GONZO_MODEL`, `GONZO_MAX_ITERATIONS`)
+  3. Config file (`gonzo.yaml` in `./`, `~/`, or `~/.config/gonzo/`)
+  4. Default values (lowest priority)
+- Updated root.go with `PersistentPreRunE` hook to initialize config before command execution
+- Updated command help text to document configuration options
+
+### Files changed
+- `go.mod`, `go.sum` - Added spf13/viper dependency and transitive dependencies
+- `pkg/config/config.go` (new) - Viper configuration package with Init, BindFlags, and getters
+- `pkg/config/config_test.go` (new) - Comprehensive tests for config package
+- `pkg/cmd/root.go` - Integrated Viper, added initConfig hook, updated runClaudePrompt to use Viper values
+
+### Learnings for future iterations
+- Viper's `AutomaticEnv()` combined with `SetEnvPrefix()` and `SetEnvKeyReplacer()` handles env var mapping
+- Use `cmd.Flags().Changed(flagName)` to check if a flag was explicitly set by the user
+- For enum flags (like model), need special handling since enumflag doesn't integrate directly with Viper
+- Config file not found is a normal case (users might not have one) - use type assertion to check for `viper.ConfigFileNotFoundError`
+- Always `viper.Reset()` between tests to avoid state pollution
 
 ---
