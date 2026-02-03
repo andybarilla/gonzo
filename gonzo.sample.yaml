@@ -1,0 +1,28 @@
+# Gonzo Sample Configuration
+#
+# Copy this file to one of the following locations:
+#   - ./gonzo.yaml (current directory, project-specific)
+#   - ~/.config/gonzo/gonzo.yaml (user config directory)
+#   - ~/gonzo.yaml (home directory)
+#
+# Configuration priority (highest to lowest):
+#   1. Command-line flags
+#   2. Environment variables (GONZO_ prefix, e.g., GONZO_MODEL)
+#   3. Configuration file
+#   4. Default values
+
+# Language model to use
+# Options: claude-haiku-3-5, claude-sonnet-4, claude-opus-4-5
+model: claude-opus-4-5
+
+# Maximum number of agentic iterations before stopping
+max-iterations: 10
+
+# Whether to implement tests as part of quality checks
+tests: true
+
+# Whether to create a pull request if one does not exist for the branch
+pr: true
+
+# Git commit author (format: 'Name <email>')
+commit-author: "Gonzo <gonzo@barilla.you>"
