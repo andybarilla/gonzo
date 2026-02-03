@@ -9,6 +9,7 @@ import (
 	"gonzo/pkg/gonzo"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -984,4 +985,227 @@ func TestRunClaudePrompt_CommitAuthorFlagShort(t *testing.T) {
 	if mock.commitAuthor != expectedCommitAuthor {
 		t.Errorf("expected commitAuthor %q, got %q", expectedCommitAuthor, mock.commitAuthor)
 	}
+}
+
+func TestRunClaudePrompt_WithFeatureFile(t *testing.T) {
+	// Save original and restore after test
+	originalNewRunner := newRunner
+	defer func() { newRunner = originalNewRunner }()
+
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
+
+	// Create a temporary file with feature content
+	tmpDir := t.TempDir()
+	featureFile := filepath.Join(tmpDir, "feature.txt")
+	featureContent := "implement a login form with email and password fields"
+	if err := os.WriteFile(featureFile, []byte(featureContent), 0644); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_, _, err := executeCommandC(rootCmd, featureFile)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The feature should be read from the file
+	if mock.capturedPrompt != featureContent {
+		t.Errorf("expected prompt from file %q, got %q", featureContent, mock.capturedPrompt)
+	}
+}
+
+func TestRunClaudePrompt_WithFeatureFileMultiline(t *testing.T) {
+	// Save original and restore after test
+	originalNewRunner := newRunner
+	defer func() { newRunner = originalNewRunner }()
+
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
+
+	// Create a temporary file with multiline feature content
+	tmpDir := t.TempDir()
+	featureFile := filepath.Join(tmpDir, "feature.md")
+	featureContent := "# Feature: User Login\n\n## Description\nImplement a login form with:\n- Email field\n- Password field\n- Remember me checkbox"
+	if err := os.WriteFile(featureFile, []byte(featureContent), 0644); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_, _, err := executeCommandC(rootCmd, featureFile)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The feature should be read from the file (trimmed)
+	expectedContent := strings.TrimSpace(featureContent)
+	if mock.capturedPrompt != expectedContent {
+		t.Errorf("expected prompt from file %q, got %q", expectedContent, mock.capturedPrompt)
+	}
+}
+
+func TestRunClaudePrompt_NonExistentFileTreatedAsFeature(t *testing.T) {
+	// Save original and restore after test
+	originalNewRunner := newRunner
+	defer func() { newRunner = originalNewRunner }()
+
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Pass a non-existent file path - should be treated as a feature string
+	nonExistentPath := "/path/to/nonexistent/file.txt"
+	_, _, err := executeCommandC(rootCmd, nonExistentPath)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The argument should be treated as a feature string since the file doesn't exist
+	if mock.capturedPrompt != nonExistentPath {
+		t.Errorf("expected prompt %q, got %q", nonExistentPath, mock.capturedPrompt)
+	}
+}
+
+func TestRunClaudePrompt_MultipleArgsTreatedAsFeature(t *testing.T) {
+	// Save original and restore after test
+	originalNewRunner := newRunner
+	defer func() { newRunner = originalNewRunner }()
+
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
+
+	// Create a temporary file - but it won't be used since we have multiple args
+	tmpDir := t.TempDir()
+	featureFile := filepath.Join(tmpDir, "feature.txt")
+	if err := os.WriteFile(featureFile, []byte("file content"), 0644); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Multiple args should be joined as a feature, not read from file
+	_, _, err := executeCommandC(rootCmd, featureFile, "extra", "args")
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Multiple args should be joined, not read from file
+	expectedPrompt := featureFile + " extra args"
+	if mock.capturedPrompt != expectedPrompt {
+		t.Errorf("expected prompt %q, got %q", expectedPrompt, mock.capturedPrompt)
+	}
+}
+
+func TestRunClaudePrompt_DirectoryNotReadAsFile(t *testing.T) {
+	// Save original and restore after test
+	originalNewRunner := newRunner
+	defer func() { newRunner = originalNewRunner }()
+
+	mock := &mockRunner{response: "mocked response"}
+	newRunner = mockRunnerFactory(mock)
+
+	// Create a temporary directory
+	tmpDir := t.TempDir()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Pass a directory path - should be treated as a feature string, not read as file
+	_, _, err := executeCommandC(rootCmd, tmpDir)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The directory path should be treated as a feature string
+	if mock.capturedPrompt != tmpDir {
+		t.Errorf("expected prompt %q, got %q", tmpDir, mock.capturedPrompt)
+	}
+}
+
+func TestReadFeatureFromFile(t *testing.T) {
+	t.Run("reads regular file", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "test.txt")
+		content := "  test content with whitespace  "
+		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+
+		result, err := readFeatureFromFile(filePath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expected := "test content with whitespace"
+		if result != expected {
+			t.Errorf("expected %q, got %q", expected, result)
+		}
+	})
+
+	t.Run("returns error for non-existent file", func(t *testing.T) {
+		_, err := readFeatureFromFile("/nonexistent/path/file.txt")
+		if err == nil {
+			t.Error("expected error for non-existent file")
+		}
+	})
+
+	t.Run("returns error for directory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_, err := readFeatureFromFile(tmpDir)
+		if err == nil {
+			t.Error("expected error for directory")
+		}
+	})
 }
