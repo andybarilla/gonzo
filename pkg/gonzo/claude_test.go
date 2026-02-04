@@ -287,3 +287,34 @@ func TestDefaultPR(t *testing.T) {
 		t.Errorf("expected default pr to be false, got %v", cc.pr)
 	}
 }
+
+func TestWithCommitAuthor(t *testing.T) {
+	tests := []struct {
+		name              string
+		commitAuthorValue string
+		expected          string
+	}{
+		{"custom author", "Custom Author <custom@example.com>", "Custom Author <custom@example.com>"},
+		{"another author", "Another Person <another@test.org>", "Another Person <another@test.org>"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cc := New().WithCommitAuthor(tt.commitAuthorValue)
+			if cc.commitAuthor != tt.expected {
+				t.Errorf("expected commitAuthor %q, got %q", tt.expected, cc.commitAuthor)
+			}
+		})
+	}
+}
+
+func TestDefaultCommitAuthor(t *testing.T) {
+	cc := New()
+	if cc.commitAuthor != DefaultCommitAuthor {
+		t.Errorf("expected default commitAuthor %q, got %q", DefaultCommitAuthor, cc.commitAuthor)
+	}
+	expectedDefault := "Gonzo <gonzo@barilla.you>"
+	if cc.commitAuthor != expectedDefault {
+		t.Errorf("expected default commitAuthor to be %q, got %q", expectedDefault, cc.commitAuthor)
+	}
+}
