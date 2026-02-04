@@ -21,7 +21,7 @@ type mockRunner struct {
 	model         string
 	quiet         bool
 	maxIterations int
-	branch        bool
+	noBranch      bool
 	tests         bool
 	pr            bool
 	commitAuthor  string
@@ -39,12 +39,12 @@ func (m *mockRunner) Generate(ctx context.Context, prompt string) (string, error
 }
 
 // mockRunnerFactory creates a factory function that returns a mock runner and captures options.
-func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
-	return func(model string, quiet bool, maxIter int, branch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
+func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, noBranch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
+	return func(model string, quiet bool, maxIter int, noBranch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
 		mock.model = model
 		mock.quiet = quiet
 		mock.maxIterations = maxIter
-		mock.branch = branch
+		mock.noBranch = noBranch
 		mock.tests = tests
 		mock.pr = pr
 		mock.commitAuthor = commitAuthor
@@ -517,13 +517,13 @@ func TestRunClaudePrompt_InvalidMaxIterations(t *testing.T) {
 	}
 }
 
-func TestRunClaudePrompt_DefaultBranch(t *testing.T) {
+func TestRunClaudePrompt_DefaultNoBranch(t *testing.T) {
 	// Save original and restore after test
 	originalNewRunner := newRunner
-	originalBranch := branch
+	originalNoBranch := noBranch
 	defer func() {
 		newRunner = originalNewRunner
-		branch = originalBranch
+		noBranch = originalNoBranch
 	}()
 
 	mock := &mockRunner{response: "mocked response"}
@@ -534,8 +534,8 @@ func TestRunClaudePrompt_DefaultBranch(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// Reset to default (flag default is true)
-	branch = true
+	// Reset to default (flag default is false - branch creation is enabled by default)
+	noBranch = false
 	_, _, err := executeCommandC(rootCmd, "test prompt")
 
 	_ = w.Close()
@@ -548,29 +548,29 @@ func TestRunClaudePrompt_DefaultBranch(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !mock.branch {
-		t.Errorf("expected default branch true, got %v", mock.branch)
+	if mock.noBranch {
+		t.Errorf("expected default noBranch false, got %v", mock.noBranch)
 	}
 }
 
-func TestRunClaudePrompt_BranchFlag(t *testing.T) {
+func TestRunClaudePrompt_NoBranchFlag(t *testing.T) {
 	tests := []struct {
-		name           string
-		flagValue      string
-		expectedBranch bool
+		name             string
+		flagValue        string
+		expectedNoBranch bool
 	}{
-		{"branch true", "true", true},
-		{"branch false", "false", false},
+		{"no-branch true", "true", true},
+		{"no-branch false", "false", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Save original and restore after test
 			originalNewRunner := newRunner
-			originalBranch := branch
+			originalNoBranch := noBranch
 			defer func() {
 				newRunner = originalNewRunner
-				branch = originalBranch
+				noBranch = originalNoBranch
 			}()
 
 			mock := &mockRunner{response: "mocked response"}
@@ -581,7 +581,7 @@ func TestRunClaudePrompt_BranchFlag(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			_, _, err := executeCommandC(rootCmd, "--branch="+tt.flagValue, "test prompt")
+			_, _, err := executeCommandC(rootCmd, "--no-branch="+tt.flagValue, "test prompt")
 
 			_ = w.Close()
 			os.Stdout = oldStdout
@@ -593,20 +593,20 @@ func TestRunClaudePrompt_BranchFlag(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if mock.branch != tt.expectedBranch {
-				t.Errorf("expected branch %v, got %v", tt.expectedBranch, mock.branch)
+			if mock.noBranch != tt.expectedNoBranch {
+				t.Errorf("expected noBranch %v, got %v", tt.expectedNoBranch, mock.noBranch)
 			}
 		})
 	}
 }
 
-func TestRunClaudePrompt_BranchFlagShort(t *testing.T) {
+func TestRunClaudePrompt_NoBranchFlagWithoutShorthand(t *testing.T) {
 	// Save original and restore after test
 	originalNewRunner := newRunner
-	originalBranch := branch
+	originalNoBranch := noBranch
 	defer func() {
 		newRunner = originalNewRunner
-		branch = originalBranch
+		noBranch = originalNoBranch
 	}()
 
 	mock := &mockRunner{response: "mocked response"}
@@ -617,7 +617,8 @@ func TestRunClaudePrompt_BranchFlagShort(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	_, _, err := executeCommandC(rootCmd, "-b=false", "test prompt")
+	// --no-branch flag has no shorthand, so just test the long form
+	_, _, err := executeCommandC(rootCmd, "--no-branch", "test prompt")
 
 	_ = w.Close()
 	os.Stdout = oldStdout
@@ -629,8 +630,8 @@ func TestRunClaudePrompt_BranchFlagShort(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if mock.branch {
-		t.Errorf("expected branch false, got %v", mock.branch)
+	if !mock.noBranch {
+		t.Errorf("expected noBranch true, got %v", mock.noBranch)
 	}
 }
 

@@ -38,6 +38,9 @@ const (
 	KeyCommitAuthor  = "commit-author"
 )
 
+// Deprecated: Use KeyNoBranch instead
+const KeyBranch = "branch"
+
 // Default values
 const (
 	DefaultModel         = "claude-opus-4-5"

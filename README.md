@@ -65,7 +65,7 @@ Flags:
                              Options: claude-haiku-3-5, claude-sonnet-4, claude-opus-4-5
   -i, --max-iterations <n>   Maximum agentic iterations before stopping (default: 10)
   -q, --quiet                Disable output messages
-  -b, --branch               Create a new git branch for changes (default: true)
+      --no-branch            Skip creating a new git branch for changes
   -t, --tests                Run tests as part of quality checks (default: true)
   -p, --pr                   Create a pull request if one doesn't exist (default: true)
   -h, --help                 Show help
@@ -82,7 +82,7 @@ gonzo -m claude-haiku-3-5 "fix the typo in README"
 gonzo -i 20 "implement user authentication with JWT"
 
 # Skip branch creation and PR
-gonzo --branch=false --pr=false "quick fix for bug"
+gonzo --no-branch --pr=false "quick fix for bug"
 
 # Skip tests for documentation-only changes
 gonzo --tests=false "update the API documentation"
@@ -133,7 +133,7 @@ All configuration options can be set via environment variables with the `GONZO_`
 export GONZO_MODEL=claude-sonnet-4
 export GONZO_MAX_ITERATIONS=15
 export GONZO_QUIET=true
-export GONZO_BRANCH=true
+export GONZO_NO_BRANCH=false
 export GONZO_TESTS=true
 export GONZO_PR=false
 

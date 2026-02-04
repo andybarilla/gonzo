@@ -24,7 +24,7 @@ const ClaudeOpus = "claude-opus-4-5"
 const DefaultOptClaudeModel = ClaudeOpus
 const DefaultOptQuiet = false
 const DefaultMaxIterations = 10
-const DefaultBranch = true
+const DefaultNoBranch = false
 const DefaultTests = true
 const DefaultPR = false
 const DefaultCommitAuthor = "Gonzo <gonzo@barilla.you>"
@@ -42,7 +42,7 @@ type ClaudeConfig struct {
 	model            string
 	quiet            bool
 	maxIterations    int
-	branch           bool
+	noBranch         bool
 	tests            bool
 	pr               bool
 	commitAuthor     string
@@ -56,7 +56,7 @@ func New() *ClaudeConfig {
 		model:            DefaultOptClaudeModel,
 		quiet:            DefaultOptQuiet,
 		maxIterations:    DefaultMaxIterations,
-		branch:           DefaultBranch,
+		noBranch:         DefaultNoBranch,
 		tests:            DefaultTests,
 		pr:               DefaultPR,
 		commitAuthor:     DefaultCommitAuthor,
@@ -79,8 +79,8 @@ func (cc *ClaudeConfig) WithMaxIterations(maxIterations int) *ClaudeConfig {
 	return cc
 }
 
-func (cc *ClaudeConfig) WithBranch(branch bool) *ClaudeConfig {
-	cc.branch = branch
+func (cc *ClaudeConfig) WithNoBranch(noBranch bool) *ClaudeConfig {
+	cc.noBranch = noBranch
 	return cc
 }
 
@@ -113,7 +113,7 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, e
 		PR           bool
 		CommitAuthor string
 	}{
-		Branch:       cc.branch,
+		Branch:       !cc.noBranch, // Branch is enabled when noBranch is false
 		Tests:        cc.tests,
 		PR:           cc.pr,
 		CommitAuthor: cc.commitAuthor,
@@ -209,7 +209,7 @@ func (cc *ClaudeConfig) ensureProgressFileExists() error {
 			Branch bool
 		}{
 			Now:    time.Now(),
-			Branch: cc.branch,
+			Branch: !cc.noBranch, // Branch is enabled when noBranch is false
 		})
 		if err != nil {
 			return fmt.Errorf("failed to write to progress file: %w", err)

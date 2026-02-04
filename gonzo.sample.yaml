@@ -18,6 +18,9 @@ model: claude-opus-4-5
 # Maximum number of agentic iterations before stopping
 max-iterations: 10
 
+# Whether to skip creating a new git branch for changes (default: false)
+# no-branch: false
+
 # Whether to implement tests as part of quality checks
 tests: true
 
