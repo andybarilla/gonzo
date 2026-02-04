@@ -31,7 +31,7 @@ func TestInit_DefaultValues(t *testing.T) {
 		{KeyMaxIterations, DefaultMaxIterations, func() interface{} { return GetMaxIterations() }},
 		{KeyQuiet, DefaultQuiet, func() interface{} { return GetQuiet() }},
 		{KeyNoBranch, DefaultNoBranch, func() interface{} { return GetNoBranch() }},
-		{KeyTests, DefaultTests, func() interface{} { return GetTests() }},
+		{KeyNoNewTests, DefaultNoNewTests, func() interface{} { return GetNoNewTests() }},
 		{KeyPR, DefaultPR, func() interface{} { return GetPR() }},
 		{KeyCommitAuthor, DefaultCommitAuthor, func() interface{} { return GetCommitAuthor() }},
 	}
@@ -55,7 +55,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		"GONZO_MAX_ITERATIONS": "25",
 		"GONZO_QUIET":          "true",
 		"GONZO_NO_BRANCH":      "true",
-		"GONZO_TESTS":          "false",
+		"GONZO_NO_NEW_TESTS":   "true",
 		"GONZO_PR":             "true",
 		"GONZO_COMMIT_AUTHOR":  "Test Author <test@example.com>",
 	}
@@ -83,7 +83,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		{"max-iterations", 25, func() interface{} { return GetMaxIterations() }},
 		{"quiet", true, func() interface{} { return GetQuiet() }},
 		{"no-branch", true, func() interface{} { return GetNoBranch() }},
-		{"tests", false, func() interface{} { return GetTests() }},
+		{"no-new-tests", true, func() interface{} { return GetNoNewTests() }},
 		{"pr", true, func() interface{} { return GetPR() }},
 		{"commit-author", "Test Author <test@example.com>", func() interface{} { return GetCommitAuthor() }},
 	}
@@ -109,7 +109,7 @@ func TestInit_ConfigFile(t *testing.T) {
 max-iterations: 15
 quiet: true
 no-branch: true
-tests: false
+no-new-tests: true
 pr: true
 commit-author: Config Author <config@example.com>
 `
@@ -136,7 +136,7 @@ commit-author: Config Author <config@example.com>
 		{"max-iterations", 15, func() interface{} { return GetMaxIterations() }},
 		{"quiet", true, func() interface{} { return GetQuiet() }},
 		{"no-branch", true, func() interface{} { return GetNoBranch() }},
-		{"tests", false, func() interface{} { return GetTests() }},
+		{"no-new-tests", true, func() interface{} { return GetNoNewTests() }},
 		{"pr", true, func() interface{} { return GetPR() }},
 		{"commit-author", "Config Author <config@example.com>", func() interface{} { return GetCommitAuthor() }},
 	}
@@ -206,7 +206,7 @@ func TestBindFlags(t *testing.T) {
 	cmd.PersistentFlags().Int(KeyMaxIterations, DefaultMaxIterations, "max iterations")
 	cmd.PersistentFlags().Bool(KeyQuiet, DefaultQuiet, "quiet mode")
 	cmd.PersistentFlags().Bool(KeyNoBranch, DefaultNoBranch, "no-branch")
-	cmd.PersistentFlags().Bool(KeyTests, DefaultTests, "tests")
+	cmd.PersistentFlags().Bool(KeyNoNewTests, DefaultNoNewTests, "no-new-tests")
 	cmd.PersistentFlags().Bool(KeyPR, DefaultPR, "pr")
 	cmd.PersistentFlags().String(KeyCommitAuthor, DefaultCommitAuthor, "commit author")
 
@@ -244,7 +244,7 @@ func TestAllSettings(t *testing.T) {
 	settings := AllSettings()
 
 	// Check that all keys are present
-	expectedKeys := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyNoBranch, KeyTests, KeyPR, KeyCommitAuthor}
+	expectedKeys := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyNoBranch, KeyNoNewTests, KeyPR, KeyCommitAuthor}
 	for _, key := range expectedKeys {
 		if _, ok := settings[key]; !ok {
 			t.Errorf("expected key %q in AllSettings()", key)

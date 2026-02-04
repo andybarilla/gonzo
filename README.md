@@ -66,7 +66,7 @@ Flags:
   -i, --max-iterations <n>   Maximum agentic iterations before stopping (default: 10)
   -q, --quiet                Disable output messages
       --no-branch            Skip creating a new git branch for changes
-  -t, --tests                Run tests as part of quality checks (default: true)
+      --no-new-tests         Skip implementing new tests for the feature
   -p, --pr                   Create a pull request if one doesn't exist (default: true)
   -h, --help                 Show help
   -v, --version              Show version
@@ -84,8 +84,8 @@ gonzo -i 20 "implement user authentication with JWT"
 # Skip branch creation and PR
 gonzo --no-branch --pr=false "quick fix for bug"
 
-# Skip tests for documentation-only changes
-gonzo --tests=false "update the API documentation"
+# Skip creating new tests for documentation-only changes
+gonzo --no-new-tests "update the API documentation"
 
 # Quiet mode for CI/CD pipelines
 gonzo -q "add CI workflow"
@@ -116,8 +116,8 @@ model: claude-opus-4-5
 # Maximum number of agentic iterations
 max-iterations: 10
 
-# Whether to run tests during quality checks
-tests: true
+# Whether to skip creating new tests for the feature
+no-new-tests: false
 
 # Whether to create a pull request
 pr: true
@@ -134,7 +134,7 @@ export GONZO_MODEL=claude-sonnet-4
 export GONZO_MAX_ITERATIONS=15
 export GONZO_QUIET=true
 export GONZO_NO_BRANCH=false
-export GONZO_TESTS=true
+export GONZO_NO_NEW_TESTS=false
 export GONZO_PR=false
 
 gonzo "add a new feature"

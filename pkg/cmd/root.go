@@ -32,13 +32,13 @@ var llmModel = ModelClaudeOpus
 var maxIterations int
 var quiet bool
 var noBranch bool
-var tests bool
+var noNewTests bool
 var pr bool
 var commitAuthor string
 
 // newRunner creates a new gonzo.Runner. Replaceable for testing.
-var newRunner = func(model string, quiet bool, maxIter int, noBranch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
-	return gonzo.New().WithModel(model).WithQuiet(quiet).WithMaxIterations(maxIter).WithNoBranch(noBranch).WithTests(tests).WithPR(pr).WithCommitAuthor(commitAuthor)
+var newRunner = func(model string, quiet bool, maxIter int, noBranch bool, noNewTests bool, pr bool, commitAuthor string) gonzo.Runner {
+	return gonzo.New().WithModel(model).WithQuiet(quiet).WithMaxIterations(maxIter).WithNoBranch(noBranch).WithNoNewTests(noNewTests).WithPR(pr).WithCommitAuthor(commitAuthor)
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -118,10 +118,10 @@ func init() {
 		"no-branch", config.DefaultNoBranch,
 		"Skip creating a new git branch for the changes")
 
-	rootCmd.PersistentFlags().BoolVarP(
-		&tests,
-		"tests", "t", config.DefaultTests,
-		"Implement tests as part of the quality checks")
+	rootCmd.PersistentFlags().BoolVar(
+		&noNewTests,
+		"no-new-tests", config.DefaultNoNewTests,
+		"Skip implementing new tests for the feature")
 
 	rootCmd.PersistentFlags().BoolVarP(
 		&pr,
@@ -179,7 +179,7 @@ func runClaudePrompt(cmd *cobra.Command, args []string) {
 		viper.GetBool(config.KeyQuiet),
 		viper.GetInt(config.KeyMaxIterations),
 		viper.GetBool(config.KeyNoBranch),
-		viper.GetBool(config.KeyTests),
+		viper.GetBool(config.KeyNoNewTests),
 		viper.GetBool(config.KeyPR),
 		viper.GetString(config.KeyCommitAuthor),
 	)

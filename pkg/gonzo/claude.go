@@ -25,7 +25,7 @@ const DefaultOptClaudeModel = ClaudeOpus
 const DefaultOptQuiet = false
 const DefaultMaxIterations = 10
 const DefaultNoBranch = false
-const DefaultTests = true
+const DefaultNoNewTests = false
 const DefaultPR = false
 const DefaultCommitAuthor = "Gonzo <gonzo@barilla.you>"
 const DefaultCompletionSignal = "<promise>COMPLETE</promise>"
@@ -43,7 +43,7 @@ type ClaudeConfig struct {
 	quiet            bool
 	maxIterations    int
 	noBranch         bool
-	tests            bool
+	noNewTests       bool
 	pr               bool
 	commitAuthor     string
 	completionSignal string
@@ -57,7 +57,7 @@ func New() *ClaudeConfig {
 		quiet:            DefaultOptQuiet,
 		maxIterations:    DefaultMaxIterations,
 		noBranch:         DefaultNoBranch,
-		tests:            DefaultTests,
+		noNewTests:       DefaultNoNewTests,
 		pr:               DefaultPR,
 		commitAuthor:     DefaultCommitAuthor,
 		completionSignal: DefaultCompletionSignal,
@@ -84,8 +84,8 @@ func (cc *ClaudeConfig) WithNoBranch(noBranch bool) *ClaudeConfig {
 	return cc
 }
 
-func (cc *ClaudeConfig) WithTests(tests bool) *ClaudeConfig {
-	cc.tests = tests
+func (cc *ClaudeConfig) WithNoNewTests(noNewTests bool) *ClaudeConfig {
+	cc.noNewTests = noNewTests
 	return cc
 }
 
@@ -113,8 +113,8 @@ func (cc *ClaudeConfig) Generate(ctx context.Context, feature string) (string, e
 		PR           bool
 		CommitAuthor string
 	}{
-		Branch:       !cc.noBranch, // Branch is enabled when noBranch is false
-		Tests:        cc.tests,
+		Branch:       !cc.noBranch,   // Branch is enabled when noBranch is false
+		Tests:        !cc.noNewTests, // Tests is enabled when noNewTests is false
 		PR:           cc.pr,
 		CommitAuthor: cc.commitAuthor,
 	})

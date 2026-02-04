@@ -21,8 +21,8 @@ max-iterations: 10
 # Whether to skip creating a new git branch for changes (default: false)
 # no-branch: false
 
-# Whether to implement tests as part of quality checks
-tests: true
+# Whether to skip implementing new tests for the feature (default: false)
+# no-new-tests: false
 
 # Whether to create a pull request if one does not exist for the branch
 pr: true

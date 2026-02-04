@@ -33,10 +33,13 @@ const (
 	KeyMaxIterations = "max-iterations"
 	KeyQuiet         = "quiet"
 	KeyNoBranch      = "no-branch"
-	KeyTests         = "tests"
+	KeyNoNewTests    = "no-new-tests"
 	KeyPR            = "pr"
 	KeyCommitAuthor  = "commit-author"
 )
+
+// Deprecated: Use KeyNoNewTests instead
+const KeyTests = "tests"
 
 // Deprecated: Use KeyNoBranch instead
 const KeyBranch = "branch"
@@ -47,10 +50,13 @@ const (
 	DefaultMaxIterations = 10
 	DefaultQuiet         = false
 	DefaultNoBranch      = false
-	DefaultTests         = true
+	DefaultNoNewTests    = false
 	DefaultPR            = true
 	DefaultCommitAuthor  = "Gonzo <gonzo@barilla.you>"
 )
+
+// Deprecated: Use DefaultNoNewTests instead
+const DefaultTests = true
 
 // Init initializes Viper with defaults, config file, and environment variables.
 // This should be called before cobra.Command.Execute() to ensure configuration
@@ -61,7 +67,7 @@ func Init() error {
 	viper.SetDefault(KeyMaxIterations, DefaultMaxIterations)
 	viper.SetDefault(KeyQuiet, DefaultQuiet)
 	viper.SetDefault(KeyNoBranch, DefaultNoBranch)
-	viper.SetDefault(KeyTests, DefaultTests)
+	viper.SetDefault(KeyNoNewTests, DefaultNoNewTests)
 	viper.SetDefault(KeyPR, DefaultPR)
 	viper.SetDefault(KeyCommitAuthor, DefaultCommitAuthor)
 
@@ -100,7 +106,7 @@ func Init() error {
 // This should be called in the cobra command's PersistentPreRunE or PreRunE
 // after flags have been defined but before they are used.
 func BindFlags(cmd *cobra.Command) error {
-	flags := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyNoBranch, KeyTests, KeyPR, KeyCommitAuthor}
+	flags := []string{KeyModel, KeyMaxIterations, KeyQuiet, KeyNoBranch, KeyNoNewTests, KeyPR, KeyCommitAuthor}
 
 	for _, flag := range flags {
 		if err := viper.BindPFlag(flag, cmd.PersistentFlags().Lookup(flag)); err != nil {
@@ -131,9 +137,9 @@ func GetNoBranch() bool {
 	return viper.GetBool(KeyNoBranch)
 }
 
-// GetTests returns whether tests should be run
-func GetTests() bool {
-	return viper.GetBool(KeyTests)
+// GetNoNewTests returns whether new test creation should be skipped
+func GetNoNewTests() bool {
+	return viper.GetBool(KeyNoNewTests)
 }
 
 // GetPR returns whether PR creation is enabled

@@ -22,7 +22,7 @@ type mockRunner struct {
 	quiet         bool
 	maxIterations int
 	noBranch      bool
-	tests         bool
+	noNewTests    bool
 	pr            bool
 	commitAuthor  string
 	response      string
@@ -39,13 +39,13 @@ func (m *mockRunner) Generate(ctx context.Context, prompt string) (string, error
 }
 
 // mockRunnerFactory creates a factory function that returns a mock runner and captures options.
-func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, noBranch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
-	return func(model string, quiet bool, maxIter int, noBranch bool, tests bool, pr bool, commitAuthor string) gonzo.Runner {
+func mockRunnerFactory(mock *mockRunner) func(model string, quiet bool, maxIter int, noBranch bool, noNewTests bool, pr bool, commitAuthor string) gonzo.Runner {
+	return func(model string, quiet bool, maxIter int, noBranch bool, noNewTests bool, pr bool, commitAuthor string) gonzo.Runner {
 		mock.model = model
 		mock.quiet = quiet
 		mock.maxIterations = maxIter
 		mock.noBranch = noBranch
-		mock.tests = tests
+		mock.noNewTests = noNewTests
 		mock.pr = pr
 		mock.commitAuthor = commitAuthor
 		return mock
@@ -635,13 +635,13 @@ func TestRunClaudePrompt_NoBranchFlagWithoutShorthand(t *testing.T) {
 	}
 }
 
-func TestRunClaudePrompt_DefaultTests(t *testing.T) {
+func TestRunClaudePrompt_DefaultNoNewTests(t *testing.T) {
 	// Save original and restore after test
 	originalNewRunner := newRunner
-	originalTests := tests
+	originalNoNewTests := noNewTests
 	defer func() {
 		newRunner = originalNewRunner
-		tests = originalTests
+		noNewTests = originalNoNewTests
 	}()
 
 	mock := &mockRunner{response: "mocked response"}
@@ -652,8 +652,8 @@ func TestRunClaudePrompt_DefaultTests(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// Reset to default (flag default is true)
-	tests = true
+	// Reset to default (flag default is false - tests ARE created by default)
+	noNewTests = false
 	_, _, err := executeCommandC(rootCmd, "test prompt")
 
 	_ = w.Close()
@@ -666,29 +666,29 @@ func TestRunClaudePrompt_DefaultTests(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !mock.tests {
-		t.Errorf("expected default tests true, got %v", mock.tests)
+	if mock.noNewTests {
+		t.Errorf("expected default noNewTests false, got %v", mock.noNewTests)
 	}
 }
 
-func TestRunClaudePrompt_TestsFlag(t *testing.T) {
+func TestRunClaudePrompt_NoNewTestsFlag(t *testing.T) {
 	testCases := []struct {
-		name          string
-		flagValue     string
-		expectedTests bool
+		name               string
+		flagValue          string
+		expectedNoNewTests bool
 	}{
-		{"tests true", "true", true},
-		{"tests false", "false", false},
+		{"no-new-tests true", "true", true},
+		{"no-new-tests false", "false", false},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			// Save original and restore after test
 			originalNewRunner := newRunner
-			originalTests := tests
+			originalNoNewTests := noNewTests
 			defer func() {
 				newRunner = originalNewRunner
-				tests = originalTests
+				noNewTests = originalNoNewTests
 			}()
 
 			mock := &mockRunner{response: "mocked response"}
@@ -699,7 +699,7 @@ func TestRunClaudePrompt_TestsFlag(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			_, _, err := executeCommandC(rootCmd, "--tests="+tt.flagValue, "test prompt")
+			_, _, err := executeCommandC(rootCmd, "--no-new-tests="+tt.flagValue, "test prompt")
 
 			_ = w.Close()
 			os.Stdout = oldStdout
@@ -711,20 +711,20 @@ func TestRunClaudePrompt_TestsFlag(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if mock.tests != tt.expectedTests {
-				t.Errorf("expected tests %v, got %v", tt.expectedTests, mock.tests)
+			if mock.noNewTests != tt.expectedNoNewTests {
+				t.Errorf("expected noNewTests %v, got %v", tt.expectedNoNewTests, mock.noNewTests)
 			}
 		})
 	}
 }
 
-func TestRunClaudePrompt_TestsFlagShort(t *testing.T) {
+func TestRunClaudePrompt_NoNewTestsFlagWithoutShorthand(t *testing.T) {
 	// Save original and restore after test
 	originalNewRunner := newRunner
-	originalTests := tests
+	originalNoNewTests := noNewTests
 	defer func() {
 		newRunner = originalNewRunner
-		tests = originalTests
+		noNewTests = originalNoNewTests
 	}()
 
 	mock := &mockRunner{response: "mocked response"}
@@ -735,7 +735,8 @@ func TestRunClaudePrompt_TestsFlagShort(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	_, _, err := executeCommandC(rootCmd, "-t=false", "test prompt")
+	// --no-new-tests flag has no shorthand, so just test the long form
+	_, _, err := executeCommandC(rootCmd, "--no-new-tests", "test prompt")
 
 	_ = w.Close()
 	os.Stdout = oldStdout
@@ -747,8 +748,8 @@ func TestRunClaudePrompt_TestsFlagShort(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if mock.tests {
-		t.Errorf("expected tests false, got %v", mock.tests)
+	if !mock.noNewTests {
+		t.Errorf("expected noNewTests true, got %v", mock.noNewTests)
 	}
 }
 
